@@ -257,6 +257,38 @@ def hbar(fig, max_v: float, left: int = 180, ysize: int = 10):
     return fig
 
 
+def pct(num: float, den: float) -> float:
+    return (num / den * 100.0) if den else 0.0
+
+
+def workforce_insights(df: pd.DataFrame) -> dict:
+    total = df["DNI"].dropna().nunique()
+    ingresados = df["FECHA DE INGRESO"].dropna()
+    corte = pd.Timestamp.today().normalize()
+
+    if ingresados.empty:
+        return {
+            "total": total,
+            "estabilidad_6m": 0.0,
+            "mediana_meses": 0.0,
+            "recientes_90d": 0,
+            "recientes_90d_pct": 0.0,
+        }
+
+    meses_antig = ((corte - ingresados).dt.days / 30.44).clip(lower=0)
+    estab_6m = pct((meses_antig >= 6).sum(), len(meses_antig))
+    mediana = float(meses_antig.median())
+    rec_90 = int((corte - ingresados).dt.days.le(90).sum())
+
+    return {
+        "total": total,
+        "estabilidad_6m": estab_6m,
+        "mediana_meses": mediana,
+        "recientes_90d": rec_90,
+        "recientes_90d_pct": pct(rec_90, total),
+    }
+
+
 # ── Sidebar ───────────────────────────────────────────────────────────────────
 def sync(key, valid):
     st.session_state[key] = [v for v in st.session_state.get(key, []) if v in valid]
@@ -325,6 +357,7 @@ def sidebar_filters(df: pd.DataFrame):
 
 # ── KPIs ──────────────────────────────────────────────────────────────────────
 def render_kpis(df: pd.DataFrame):
+    ins = workforce_insights(df)
     kdata = [
         (ICON["users"],    "#00a885", "Colaboradores activos",
          f'{df["DNI"].dropna().nunique():,}',        "DNIs únicos en planilla", "+12%"),
@@ -335,8 +368,8 @@ def render_kpis(df: pd.DataFrame):
         (ICON["map"],      "#d97706", "Cobertura nacional",
          f'{df["PROVINCIA"][df["PROVINCIA"]!="S/I"].nunique()} prov.',
          "Provincias activas", "Nacional"),
-        (ICON["star"],     "#16a34a", "Tasa de retención",
-         "90.8%",                                    "Personal en continuidad", "Sólido"),
+        (ICON["star"],     "#16a34a", "Estabilidad laboral (6m)",
+         f'{ins["estabilidad_6m"]:.1f}%',            "Personal con +6 meses de antigüedad", "Dinámico"),
     ]
     cols = st.columns(5)
     for col, (icon, color, label, value, sub, trend) in zip(cols, kdata):
@@ -359,13 +392,15 @@ def render_map(df: pd.DataFrame, coords: dict):
     g = (df[df["PROVINCIA"] != "S/I"]
          .groupby("PROVINCIA", as_index=False)
          .agg(count=("DNI","nunique"), clientes=("CLIENTE","nunique"),
-              unidades=("UNIDAD","nunique")))
+              unidades=("UNIDAD","nunique"), distritos=("DISTRITO", "nunique")))
+    total_provincias = int(g["PROVINCIA"].nunique())
     g["lat"] = g["PROVINCIA"].map(lambda p: coords.get(p,(None,None))[0])
     g["lon"] = g["PROVINCIA"].map(lambda p: coords.get(p,(None,None))[1])
     g = g.dropna(subset=["lat","lon"])
     if g.empty:
         st.info("Sin coordenadas para las provincias seleccionadas.")
         return
+    cobertura = pct(len(g), total_provincias)
 
     mx = g["count"].max()
 
@@ -380,8 +415,22 @@ def render_map(df: pd.DataFrame, coords: dict):
         lambda x: max(14000, min(85000, 14000 + (np.log1p(x)/np.log1p(max(mx,1)))*71000))
     )
     g["tip"] = g.apply(
-        lambda r: f"{r['PROVINCIA']}  ·  {int(r['count']):,} colaboradores  ·  {int(r['clientes'])} clientes",
+        lambda r: (
+            f"{r['PROVINCIA']}  ·  {int(r['count']):,} colaboradores  ·  "
+            f"{int(r['clientes'])} clientes  ·  {int(r['distritos'])} distritos"
+        ),
         axis=1,
+    )
+
+    peru_border = pdk.Layer(
+        "GeoJsonLayer",
+        data="https://raw.githubusercontent.com/johan/world.geo.json/master/countries/PER.geo.json",
+        stroked=True,
+        filled=False,
+        get_line_color=[15, 23, 42, 220],
+        get_line_width=26000,
+        line_width_min_pixels=1.3,
+        pickable=False,
     )
 
     heat = pdk.Layer("HeatmapLayer", data=g,
@@ -395,7 +444,7 @@ def render_map(df: pd.DataFrame, coords: dict):
         line_width_min_pixels=1.5, pickable=True, auto_highlight=True)
 
     hq = g[g["PROVINCIA"]=="LIMA"].copy()
-    layers = [heat, bubbles]
+    layers = [peru_border, heat, bubbles]
     if not hq.empty:
         hq["text"] = "SEDE"
         layers.append(pdk.Layer("TextLayer", data=hq,
@@ -416,6 +465,10 @@ def render_map(df: pd.DataFrame, coords: dict):
                      "color":"#374151","box-shadow":"0 4px 12px rgba(0,0,0,.1)"},
         },
     ), use_container_width=True, height=410)
+    st.caption(
+        f"Cobertura georreferenciada: {len(g)}/{total_provincias} provincias activas "
+        f"({cobertura:.1f}%)."
+    )
 
 
 # ── Ranking HTML ──────────────────────────────────────────────────────────────
@@ -489,11 +542,19 @@ def main():
     n_dni  = filtered["DNI"].dropna().nunique()
     n_prov = filtered["PROVINCIA"][filtered["PROVINCIA"]!="S/I"].nunique()
     n_cli  = filtered["CLIENTE"].nunique()
+    w_ins = workforce_insights(filtered)
+    top_cli = (
+        filtered.groupby("CLIENTE")["DNI"].nunique().sort_values(ascending=False).head(1)
+    )
+    top_cli_name = top_cli.index[0] if not top_cli.empty else "S/I"
+    top_cli_n = int(top_cli.iloc[0]) if not top_cli.empty else 0
     st.markdown(
         f'<div class="story-wrap"><div class="story-bar">'
         f'Visualizando <strong>{n_dni:,} colaboradores activos</strong> en '
         f'<strong>{n_prov} provincias</strong> bajo <strong>{n_cli} clientes estratégicos</strong>. '
-        f'Lima es la sede principal. El sector bancario y retail concentra el mayor volumen operativo.'
+        f'La <strong>estabilidad (+6 meses)</strong> es de <strong>{w_ins["estabilidad_6m"]:.1f}%</strong> '
+        f'y la antigüedad mediana alcanza <strong>{w_ins["mediana_meses"]:.1f} meses</strong>. '
+        f'Cliente con mayor dotación: <strong>{top_cli_name}</strong> ({top_cli_n:,} personas).'
         f'</div></div>',
         unsafe_allow_html=True,
     )
@@ -580,30 +641,51 @@ def main():
 
     st.markdown('</div>', unsafe_allow_html=True)
 
-    # ── HEATMAP ──────────────────────────────────────────────────────────────
+    # ── TERRITORIAL INTELLIGENCE ────────────────────────────────────────────
     st.markdown('<div style="padding:4px 28px 0">', unsafe_allow_html=True)
-    st.markdown(f'<div class="sec-head">{ICON["heat"]} Mapa de calor &nbsp;·&nbsp; Provincia × Régimen de planilla</div>',
+    st.markdown(f'<div class="sec-head">{ICON["heat"]} Cobertura territorial inteligente &nbsp;·&nbsp; Departamento → Provincia → Distrito</div>',
                 unsafe_allow_html=True)
-    if "REGIMEN PLANILLA" in filtered.columns:
-        hm = (filtered[filtered["PROVINCIA"]!="S/I"]
-              .groupby(["PROVINCIA","REGIMEN PLANILLA"])["DNI"].nunique().reset_index())
-        hm.columns = ["PROVINCIA","REGIMEN","N"]
-        top_p = hm.groupby("PROVINCIA")["N"].sum().sort_values(ascending=False).head(10).index.tolist()
-        top_r = hm.groupby("REGIMEN")["N"].sum().sort_values(ascending=False).head(7).index.tolist()
-        hm2 = hm[hm["PROVINCIA"].isin(top_p) & hm["REGIMEN"].isin(top_r)]
-        pivot = hm2.pivot_table(index="PROVINCIA", columns="REGIMEN",
-                                values="N", fill_value=0).reindex(index=top_p, fill_value=0)
-        fig_hm = px.imshow(pivot, color_continuous_scale=["#f0f9ff","#0369a1"],
-                           text_auto=True, aspect="auto")
-        fig_hm.update_traces(textfont_size=11)
-        fig_hm = chart_base(fig_hm, 310)
-        fig_hm.update_layout(
-            coloraxis_colorbar=dict(title="", tickfont_size=9),
-            xaxis=dict(tickangle=-25, tickfont_size=10, title=""),
-            yaxis=dict(tickfont_size=10, title=""),
-            margin=dict(l=130, r=20, t=6, b=50),
-        )
-        st.plotly_chart(fig_hm, use_container_width=True, config={"displayModeBar":False})
+    if {"DEPARTAMENTO", "PROVINCIA", "DISTRITO"}.issubset(filtered.columns):
+        terr = filtered.copy()
+        terr = terr[(terr["DEPARTAMENTO"] != "S/I") & (terr["PROVINCIA"] != "S/I") & (terr["DISTRITO"] != "S/I")]
+        terr = terr.groupby(["DEPARTAMENTO", "PROVINCIA", "DISTRITO"], as_index=False)["DNI"].nunique()
+        terr.columns = ["DEPARTAMENTO", "PROVINCIA", "DISTRITO", "N"]
+
+        t1, t2 = st.columns([1.3, 1])
+        with t1:
+            fig_terr = px.sunburst(
+                terr,
+                path=["DEPARTAMENTO", "PROVINCIA", "DISTRITO"],
+                values="N",
+                color="N",
+                color_continuous_scale=["#dbeafe", "#1d4ed8"],
+            )
+            fig_terr = chart_base(fig_terr, 320)
+            fig_terr.update_layout(margin=dict(l=8, r=8, t=8, b=8), coloraxis_colorbar=dict(title="DNIs"))
+            st.plotly_chart(fig_terr, use_container_width=True, config={"displayModeBar": False})
+
+        with t2:
+            top_dist = (
+                terr.groupby(["DEPARTAMENTO", "PROVINCIA", "DISTRITO"])["N"]
+                .sum()
+                .sort_values(ascending=False)
+                .head(12)
+                .reset_index()
+            )
+            top_dist["UBICACION"] = top_dist["DISTRITO"] + " · " + top_dist["PROVINCIA"]
+            fig_dist = px.bar(
+                top_dist,
+                x="N",
+                y="UBICACION",
+                orientation="h",
+                color="DEPARTAMENTO",
+                text="N",
+                color_discrete_sequence=PALETTE,
+            )
+            fig_dist = chart_base(fig_dist, 320)
+            fig_dist = hbar(fig_dist, top_dist["N"].max(), left=170, ysize=9)
+            fig_dist.update_layout(legend_title="", legend_font_size=9)
+            st.plotly_chart(fig_dist, use_container_width=True, config={"displayModeBar": False})
     st.markdown('</div>', unsafe_allow_html=True)
 
     # ── DETAIL TABLE ─────────────────────────────────────────────────────────
@@ -636,22 +718,30 @@ def main():
 
     # ── BOTTOM STORY ─────────────────────────────────────────────────────────
     n_uni2 = filtered["UNIDAD"].nunique()
+    top_dep = (
+        filtered[filtered["DEPARTAMENTO"] != "S/I"]
+        .groupby("DEPARTAMENTO")["DNI"].nunique()
+        .sort_values(ascending=False)
+        .head(1)
+    )
+    dep_name = top_dep.index[0] if not top_dep.empty else "S/I"
     st.markdown(
         f'<div class="bottom-story">'
-        f'<div class="b-stat"><div class="b-val">90.8%</div><div class="b-lbl">Retención</div></div>'
+        f'<div class="b-stat"><div class="b-val">{w_ins["estabilidad_6m"]:.1f}%</div><div class="b-lbl">Estabilidad +6m</div></div>'
         f'<div class="b-div"></div>'
-        f'<div class="b-stat"><div class="b-val">Lima</div><div class="b-lbl">Hub principal</div></div>'
+        f'<div class="b-stat"><div class="b-val">{w_ins["mediana_meses"]:.1f}</div><div class="b-lbl">Meses mediana</div></div>'
         f'<div class="b-div"></div>'
         f'<div class="b-stat"><div class="b-val">{n_cli}</div><div class="b-lbl">Clientes</div></div>'
         f'<div class="b-div"></div>'
         f'<div class="b-stat"><div class="b-val">{n_prov}</div><div class="b-lbl">Provincias</div></div>'
         f'<div class="b-div"></div>'
-        f'<div class="b-stat"><div class="b-val">#1</div><div class="b-lbl">BCP volumen</div></div>'
+        f'<div class="b-stat"><div class="b-val">{dep_name}</div><div class="b-lbl">Depto líder</div></div>'
         f'<div class="b-div"></div>'
         f'<div class="b-text">'
         f'<strong style="color:#00876a">Resumen ejecutivo:</strong> '
         f'{n_dni:,} colaboradores activos en {n_prov} provincias bajo {n_cli} clientes. '
-        f'Lima concentra el 40% del headcount. Sector bancario representa el 36% del volumen total. '
+        f'El {w_ins["estabilidad_6m"]:.1f}% del personal tiene al menos 6 meses de antigüedad y '
+        f'{w_ins["recientes_90d"]:,} ingresos ocurrieron en los últimos 90 días. '
         f'{n_uni2:,} unidades operativas en funcionamiento a nivel nacional.'
         f'</div></div>',
         unsafe_allow_html=True,
