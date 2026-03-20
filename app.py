@@ -59,9 +59,9 @@ button[data-testid="collapsedControl"]{display:flex!important;visibility:visible
   position:fixed;top:14px;left:12px;z-index:9999;
   background:#00a885;color:#fff;border:none;border-radius:999px;
   padding:8px 12px;font-size:.78rem;font-weight:700;cursor:pointer;
-  box-shadow:0 3px 10px rgba(0,0,0,.16)
+  box-shadow:0 3px 10px rgba(0,0,0,.16);transition:all .2s ease
 }
-.sidebar-toggle-floating:hover{filter:brightness(.95)}
+.sidebar-toggle-floating:hover{filter:brightness(.95);transform:translateY(-1px)}
 </style>
 """, unsafe_allow_html=True)
 
@@ -374,10 +374,16 @@ def main():
     filtered = sidebar_filters(df)
 
     st.markdown("""
-    <button class="sidebar-toggle-floating" onclick="
-      const btn = window.parent.document.querySelector('button[data-testid=\\"collapsedControl\\"]');
-      if (btn) { btn.click(); }
-    ">☰ Panel lateral</button>
+    <button
+      class="sidebar-toggle-floating"
+      title="Mostrar u ocultar filtros"
+      aria-label="Mostrar u ocultar filtros"
+      onclick="
+        const hostDoc = window.parent?.document || document;
+        const btn = hostDoc.querySelector('button[data-testid=\\"collapsedControl\\"]');
+        if (btn) { btn.click(); }
+      "
+    >☰ Filtros</button>
     """, unsafe_allow_html=True)
 
     st.markdown(
