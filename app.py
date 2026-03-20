@@ -55,6 +55,13 @@ div[data-testid="stPlotlyChart"]{background:#fff;border:1px solid #e2e8f0;border
 div[data-testid="stDeckGlJsonChart"]{border-radius:12px;overflow:hidden;border:1px solid #e2e8f0;box-shadow:0 1px 3px rgba(0,0,0,.05)}
 #MainMenu,footer,header{visibility:hidden}
 button[data-testid="collapsedControl"]{display:flex!important;visibility:visible!important}
+.sidebar-toggle-floating{
+  position:fixed;top:14px;left:12px;z-index:9999;
+  background:#00a885;color:#fff;border:none;border-radius:999px;
+  padding:8px 12px;font-size:.78rem;font-weight:700;cursor:pointer;
+  box-shadow:0 3px 10px rgba(0,0,0,.16)
+}
+.sidebar-toggle-floating:hover{filter:brightness(.95)}
 </style>
 """, unsafe_allow_html=True)
 
@@ -136,6 +143,12 @@ def chart_base(fig, height=270):
     )
     fig.update_xaxes(tickfont_color="#0f172a", title_font_color="#0f172a")
     fig.update_yaxes(tickfont_color="#0f172a", title_font_color="#0f172a")
+    fig.update_traces(
+        textfont=dict(color="#0f172a"),
+        insidetextfont=dict(color="#0f172a"),
+        outsidetextfont=dict(color="#0f172a"),
+    )
+    fig.update_layout(legend=dict(font=dict(color="#0f172a")))
     return fig
 
 
@@ -359,6 +372,13 @@ def main():
     df = load_data(DATA_FILE)
     geo = load_geojson()
     filtered = sidebar_filters(df)
+
+    st.markdown("""
+    <button class="sidebar-toggle-floating" onclick="
+      const btn = window.parent.document.querySelector('button[data-testid=\\"collapsedControl\\"]');
+      if (btn) { btn.click(); }
+    ">☰ Panel lateral</button>
+    """, unsafe_allow_html=True)
 
     st.markdown(
         f'<div class="hero"><div><div class="hero-title">Dashboard Ejecutivo — Gestión de Personal</div>'
