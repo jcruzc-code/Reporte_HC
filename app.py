@@ -37,7 +37,7 @@ st.markdown("""
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
 html,body,[class*="css"],.stApp{font-family:'Inter',system-ui,sans-serif!important;color:#0f172a!important}
-.stApp{background:#f0f2f7}.block-container{padding:0!important;max-width:100%!important}
+.stApp{background:#f0f2f7}.block-container{padding:0 0 0 1.5rem!important;max-width:100%!important}
 section[data-testid="stSidebar"]{background:#fff;border-right:1px solid #e2e8f0}
 section[data-testid="stSidebar"]>div{padding:1.2rem 1rem}
 .sidebar-label{font-size:.67rem;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:#0f172a!important;margin:.85rem 0 .3rem;display:block}
@@ -48,12 +48,13 @@ input,textarea,[data-baseweb="input"] input{color:#0f172a!important}
 .hero{background:#fff;padding:14px 28px 12px;border-bottom:1px solid #e2e8f0;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px}
 .hero-title{font-size:1.2rem;font-weight:700;color:#0f172a}.hero-sub{font-size:.75rem;color:#64748b}.hero-badge{background:#e6f7f3;color:#00876a;border:1px solid rgba(0,168,133,.22);border-radius:20px;padding:5px 16px;font-size:.78rem;font-weight:700}
 .story-wrap{padding:10px 28px;background:#fff;border-bottom:1px solid #f1f5f9}.story-bar{background:linear-gradient(90deg,#e6f7f3,#f0f2f7);border-left:3px solid #00a885;border-radius:0 8px 8px 0;padding:8px 18px;font-size:.79rem;color:#374151;line-height:1.6}
-.kpi-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:14px;padding:16px 28px 0}.kpi-card{background:#fff;border:1px solid #e2e8f0;border-radius:14px;padding:15px 18px 12px;box-shadow:0 1px 3px rgba(0,0,0,.06);position:relative}
+.kpi-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;padding:16px 28px 0}.kpi-card{background:#fff;border:1px solid #e2e8f0;border-radius:14px;padding:15px 18px 12px;box-shadow:0 1px 3px rgba(0,0,0,.06);position:relative}
 .kpi-bar{position:absolute;top:0;left:0;right:0;height:3px;border-radius:14px 14px 0 0}.kpi-label{font-size:.66rem;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:#94a3b8}.kpi-value{font-size:1.7rem;font-weight:700;color:#0f172a}
 .sec-head{font-size:.67rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#94a3b8;padding-bottom:6px;border-bottom:1.5px solid #e2e8f0;margin:0 0 10px;display:flex;align-items:center;gap:6px}
 div[data-testid="stPlotlyChart"]{background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:10px 12px;box-shadow:0 1px 3px rgba(0,0,0,.05);margin-bottom:14px}
 div[data-testid="stDeckGlJsonChart"]{border-radius:12px;overflow:hidden;border:1px solid #e2e8f0;box-shadow:0 1px 3px rgba(0,0,0,.05)}
 #MainMenu,footer,header{visibility:hidden}
+button[data-testid="collapsedControl"]{display:flex!important;visibility:visible!important}
 </style>
 """, unsafe_allow_html=True)
 
@@ -235,19 +236,15 @@ def generate_story(df: pd.DataFrame, full_df: pd.DataFrame) -> str:
 
 def render_kpis(df: pd.DataFrame):
     total = df["DNI"].dropna().nunique()
-    nuevos_90 = df[df["FECHA DE INGRESO"] >= (pd.Timestamp.today().normalize() - pd.Timedelta(days=90))]["DNI"].nunique()
-    ft_pct = df["REGIMEN PLANILLA"].str.startswith("FT", na=False).mean() * 100
 
     cards = [
         ("#00a885", "Colaboradores", f"{total:,}"),
         ("#2563eb", "Clientes", f"{df['CLIENTE'].nunique():,}"),
         ("#7c3aed", "Unidades", f"{df['UNIDAD'].nunique():,}"),
         ("#d97706", "Provincias", f"{df[df['PROVINCIA']!='S/I']['PROVINCIA'].nunique():,}"),
-        ("#16a34a", "Nuevos 90d", f"{nuevos_90:,}"),
-        ("#0891b2", "% Full Time", f"{ft_pct:.1f}%"),
     ]
 
-    for col, (color, label, value) in zip(st.columns(6), cards):
+    for col, (color, label, value) in zip(st.columns(4), cards):
         with col:
             st.markdown(
                 f'<div class="kpi-card"><div class="kpi-bar" style="background:{color}"></div>'
@@ -406,34 +403,6 @@ def main():
         mix = filtered.groupby("CLIENTE")["DNI"].nunique().sort_values(ascending=False).head(7).reset_index(name="N")
         fig_mix = px.pie(mix, values="N", names="CLIENTE", color_discrete_sequence=PALETTE, hole=0.45)
         st.plotly_chart(chart_base(fig_mix, 260), use_container_width=True, config={"displayModeBar": False})
-    st.markdown('</div>', unsafe_allow_html=True)
-
-    st.markdown('<div style="padding:4px 28px 0">', unsafe_allow_html=True)
-    st.markdown(f'<div class="sec-head">{ICON["heat"]} Heatmap cliente × provincia (top 8 × top 8)</div>', unsafe_allow_html=True)
-    hm = filtered.groupby(["CLIENTE", "PROVINCIA"])["DNI"].nunique().reset_index(name="N")
-    top_cli = hm.groupby("CLIENTE")["N"].sum().sort_values(ascending=False).head(8).index
-    top_prov = hm.groupby("PROVINCIA")["N"].sum().sort_values(ascending=False).head(8).index
-    hm = hm[hm["CLIENTE"].isin(top_cli) & hm["PROVINCIA"].isin(top_prov)]
-    pivot = hm.pivot_table(index="CLIENTE", columns="PROVINCIA", values="N", fill_value=0)
-    fig_hm = px.imshow(pivot, color_continuous_scale=["#f0fdf4", "#166534"], aspect="auto", text_auto=True)
-    st.plotly_chart(chart_base(fig_hm, 360), use_container_width=True, config={"displayModeBar": False})
-    st.markdown('</div>', unsafe_allow_html=True)
-
-    st.markdown('<div style="padding:4px 28px 0">', unsafe_allow_html=True)
-    x1, x2 = st.columns(2)
-    with x1:
-        st.markdown(f'<div class="sec-head">{ICON["bar"]} Top 10 supervisores</div>', unsafe_allow_html=True)
-        sup = filtered.groupby("SUPERVISOR")["DNI"].nunique().sort_values(ascending=False).head(10).reset_index(name="N")
-        fig_sup = px.bar(sup, x="N", y="SUPERVISOR", orientation="h", text="N", color="N", color_continuous_scale=["#dbeafe", "#1d4ed8"])
-        fig_sup.update_layout(yaxis=dict(autorange="reversed"), coloraxis_showscale=False)
-        st.plotly_chart(chart_base(fig_sup, 300), use_container_width=True, config={"displayModeBar": False})
-    with x2:
-        st.markdown(f'<div class="sec-head">{ICON["bar"]} Distribución de antigüedad</div>', unsafe_allow_html=True)
-        buckets = pd.cut(filtered["antiguedad_meses"], bins=[0, 3, 6, 12, 24, 9999], labels=["< 3 meses", "3–6 meses", "6m–1 año", "1–2 años", "> 2 años"])
-        ant = buckets.value_counts().sort_index().reset_index()
-        ant.columns = ["Bucket", "N"]
-        fig_ant = px.bar(ant, x="Bucket", y="N", color="Bucket", color_discrete_sequence=PALETTE, text="N")
-        st.plotly_chart(chart_base(fig_ant, 300), use_container_width=True, config={"displayModeBar": False})
     st.markdown('</div>', unsafe_allow_html=True)
 
     st.markdown('<div style="padding:4px 28px 0">', unsafe_allow_html=True)
