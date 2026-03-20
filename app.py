@@ -36,11 +36,14 @@ ICON = {
 st.markdown("""
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
-html,body,[class*="css"],.stApp{font-family:'Inter',system-ui,sans-serif!important}
+html,body,[class*="css"],.stApp{font-family:'Inter',system-ui,sans-serif!important;color:#0f172a!important}
 .stApp{background:#f0f2f7}.block-container{padding:0!important;max-width:100%!important}
 section[data-testid="stSidebar"]{background:#fff;border-right:1px solid #e2e8f0}
-section[data-testid="stSidebar"]>div{padding:1.2rem 1rem}.sidebar-label{font-size:.67rem;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:#94a3b8!important;margin:.85rem 0 .3rem;display:block}
-div[data-baseweb="select"]>div{background:#f8fafc!important;border:1px solid #cbd5e1!important;border-radius:8px!important}
+section[data-testid="stSidebar"]>div{padding:1.2rem 1rem}
+.sidebar-label{font-size:.67rem;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:#0f172a!important;margin:.85rem 0 .3rem;display:block}
+div[data-baseweb="select"]>div{background:#f8fafc!important;border:1px solid #cbd5e1!important;border-radius:8px!important;color:#0f172a!important}
+section[data-testid="stSidebar"] *{color:#0f172a!important}
+input,textarea,[data-baseweb="input"] input{color:#0f172a!important}
 .stButton>button{background:#00a885!important;color:#fff!important;border:none!important;border-radius:8px!important;font-weight:600!important;font-size:.8rem!important;width:100%;margin-top:.5rem}
 .hero{background:#fff;padding:14px 28px 12px;border-bottom:1px solid #e2e8f0;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px}
 .hero-title{font-size:1.2rem;font-weight:700;color:#0f172a}.hero-sub{font-size:.75rem;color:#64748b}.hero-badge{background:#e6f7f3;color:#00876a;border:1px solid rgba(0,168,133,.22);border-radius:20px;padding:5px 16px;font-size:.78rem;font-weight:700}
@@ -127,8 +130,11 @@ def load_geojson() -> dict | None:
 def chart_base(fig, height=270):
     fig.update_layout(
         template="plotly_white", height=height, margin=dict(l=8, r=16, t=6, b=6),
-        paper_bgcolor="white", plot_bgcolor="white", font_family="Inter, system-ui, sans-serif"
+        paper_bgcolor="white", plot_bgcolor="white",
+        font_family="Inter, system-ui, sans-serif", font_color="#0f172a"
     )
+    fig.update_xaxes(tickfont_color="#0f172a", title_font_color="#0f172a")
+    fig.update_yaxes(tickfont_color="#0f172a", title_font_color="#0f172a")
     return fig
 
 
