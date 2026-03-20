@@ -17,7 +17,7 @@ import streamlit as st
 st.set_page_config(
     page_title="Dashboard Ejecutivo · Gestión de Personal",
     layout="wide",
-    initial_sidebar_state="expanded",
+    initial_sidebar_state="collapsed",
 )
 
 ICON = {
@@ -54,7 +54,7 @@ input,textarea,[data-baseweb="input"] input{color:#0f172a!important}
 div[data-testid="stPlotlyChart"]{background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:10px 12px;box-shadow:0 1px 3px rgba(0,0,0,.05);margin-bottom:14px}
 div[data-testid="stDeckGlJsonChart"]{border-radius:12px;overflow:hidden;border:1px solid #e2e8f0;box-shadow:0 1px 3px rgba(0,0,0,.05)}
 #MainMenu,footer,header{visibility:hidden}
-button[data-testid="collapsedControl"]{display:flex!important;visibility:visible!important}
+button[data-testid="collapsedControl"]{display:flex!important;visibility:visible!important;opacity:1!important}
 .sidebar-toggle-floating{
   position:fixed;top:14px;left:12px;z-index:9999;
   background:#00a885;color:#fff;border:none;border-radius:999px;
@@ -67,6 +67,7 @@ button[data-testid="collapsedControl"]{display:flex!important;visibility:visible
 
 DATA_FILE = Path("datos_git.xlsx")
 GEOJSON_LOCAL = Path("peru_departamentos.geojson")
+PROVINCE_COORDS_FILE = Path("province_coords.csv")
 
 PROVINCE_FIX = {
     "CUZCO": "CUSCO", "CUSCO": "CUSCO", "LIMA METROPOLITANA": "LIMA",
@@ -117,7 +118,32 @@ def load_data(path: Path) -> pd.DataFrame:
     df["antiguedad"] = (df["antiguedad_dias"] / 365.25).clip(lower=0)
     df["REGIMEN_SIMPLE"] = df["REGIMEN PLANILLA"].map(classify_regimen)
     df["ANTIGUEDAD_LABEL"] = df["antiguedad"].fillna(0).apply(lambda x: f"{int(x*12)}m" if x < 1 else f"{x:.1f}a")
+    df["UBICACION"] = (
+        df["DISTRITO"].fillna("S/I") + ", " + df["PROVINCIA"].fillna("S/I") + ", Perú"
+    )
     return df
+
+
+@st.cache_data(show_spinner=False)
+def load_province_coords() -> pd.DataFrame:
+    if not PROVINCE_COORDS_FILE.exists():
+        return pd.DataFrame(columns=["PROVINCIA", "lat", "lon"])
+    coords = pd.read_csv(PROVINCE_COORDS_FILE)
+    coords.columns = [c.strip().upper() for c in coords.columns]
+    rename = {}
+    if "LAT" not in coords.columns and "LATITUDE" in coords.columns:
+        rename["LATITUDE"] = "LAT"
+    if "LON" not in coords.columns and "LONGITUDE" in coords.columns:
+        rename["LONGITUDE"] = "LON"
+    if rename:
+        coords = coords.rename(columns=rename)
+    if "PROVINCIA" not in coords.columns or "LAT" not in coords.columns or "LON" not in coords.columns:
+        return pd.DataFrame(columns=["PROVINCIA", "lat", "lon"])
+    coords["PROVINCIA"] = coords["PROVINCIA"].map(norm)
+    coords = coords.rename(columns={"LAT": "lat", "LON": "lon"})[["PROVINCIA", "lat", "lon"]]
+    coords["lat"] = pd.to_numeric(coords["lat"], errors="coerce")
+    coords["lon"] = pd.to_numeric(coords["lon"], errors="coerce")
+    return coords.dropna(subset=["PROVINCIA", "lat", "lon"]).drop_duplicates("PROVINCIA")
 
 
 @st.cache_data(show_spinner=False)
@@ -216,7 +242,6 @@ def generate_story(df: pd.DataFrame, full_df: pd.DataFrame) -> str:
     n_prov = df["PROVINCIA"][df["PROVINCIA"] != "S/I"].nunique()
     n_cli = df["CLIENTE"].nunique()
     n_uni = df["UNIDAD"].nunique()
-    hoy = pd.Timestamp.today().normalize()
 
     if total_dni == 0:
         return "Sin registros para los filtros seleccionados."
@@ -228,17 +253,11 @@ def generate_story(df: pd.DataFrame, full_df: pd.DataFrame) -> str:
     top_cli = top_cli_series.index[0] if not top_cli_series.empty else "S/I"
     top_prov = top_prov_series.index[0] if not top_prov_series.empty else "S/I"
     top_prov_n = int(top_prov_series.iloc[0]) if not top_prov_series.empty else 0
-    nuevos_90d = df[df["FECHA DE INGRESO"] >= hoy - pd.Timedelta(days=90)]["DNI"].nunique()
-    pct_nuevos = nuevos_90d / max(total_dni, 1) * 100
-    pct_ft = df["REGIMEN PLANILLA"].str.startswith("FT", na=False).mean() * 100
-
     partes = [
         (f"<strong>{total_dni:,} colaboradores activos</strong>" if pct_del_total >= 99 else f"Filtro activo: <strong>{total_dni:,}</strong> ({pct_del_total:.1f}% del total)."),
         f"Operación en <strong>{n_prov} provincias</strong> bajo <strong>{n_cli} clientes</strong> y <strong>{n_uni:,} unidades</strong>.",
-        f"Cliente líder: <strong>{top_cli}</strong>.",
+        f"Cliente líder: <strong>{top_cli}</strong> con <strong>{int(top_cli_series.iloc[0]) if not top_cli_series.empty else 0}</strong> colaboradores.",
         f"<strong>{top_prov}</strong> concentra <strong>{(top_prov_n / max(total_dni,1) * 100):.1f}%</strong> del headcount.",
-        f"<strong>{nuevos_90d:,}</strong> incorporaciones en 90 días ({pct_nuevos:.1f}%).",
-        f"<strong>{pct_ft:.0f}%</strong> de la plantilla en esquema Full Time.",
     ]
 
     if n_cli > 1 and not cli_geo_series.empty:
@@ -278,89 +297,149 @@ def render_map(df: pd.DataFrame, geojson: dict | None):
     max_count = max(counts.values()) if counts else 1
 
     features = []
-    bubbles = []
     for feat in geojson.get("features", []):
         props = feat.get("properties", {})
         name = norm(props.get("NOMBDEP") or props.get("NOMBPROV") or props.get("name") or "S/I")
         n = counts.get(name, 0)
-        color_ratio = n / max(max_count, 1)
-        fill = [240 - int(140 * color_ratio), 253 - int(80 * color_ratio), 244 - int(150 * color_ratio), 210]
+        color_ratio = (np.log1p(n) / np.log1p(max_count)) if max_count > 0 else 0
+        start = np.array([15, 23, 42, 180])
+        mid = np.array([0, 168, 133, 220])
+        end = np.array([52, 211, 153, 240])
+        if color_ratio <= 0.5:
+            t = color_ratio / 0.5
+            fill = (start + (mid - start) * t).astype(int).tolist()
+        else:
+            t = (color_ratio - 0.5) / 0.5
+            fill = (mid + (end - mid) * t).astype(int).tolist()
         new_props = {
+            "DEPT": name,
             "PROVINCIA": name,
             "count": n,
             "clientes": int(d.loc[d["PROVINCIA"] == name, "clientes"].max()) if name in counts else 0,
             "unidades": int(d.loc[d["PROVINCIA"] == name, "unidades"].max()) if name in counts else 0,
             "fill_color": fill,
+            "label": f"{name} ({n})",
+            "layer_type": "department",
         }
         feat2 = {"type": "Feature", "geometry": feat.get("geometry"), "properties": new_props}
         features.append(feat2)
 
-        if n > 0:
-            geom = feat.get("geometry", {})
-            coords = geom.get("coordinates", [])
-            points = []
-            if geom.get("type") == "Polygon":
-                points = coords[0] if coords else []
-            elif geom.get("type") == "MultiPolygon" and coords:
-                points = coords[0][0] if coords[0] else []
-            if points:
-                lon = float(np.mean([p[0] for p in points]))
-                lat = float(np.mean([p[1] for p in points]))
-                bubbles.append({
-                    "PROVINCIA": name,
-                    "count": n,
-                    "clientes": new_props["clientes"],
-                    "unidades": new_props["unidades"],
-                    "lon": lon,
-                    "lat": lat,
-                    "radius": 8000 + int((n / max_count) * 24000),
-                    "color": [220, 38, 38, 210] if name == "LIMA" else [0, 168, 133, 160],
-                    "label": "SEDE HQ" if name == "LIMA" else f"{name} ({n})",
-                })
+    province_counts = (
+        df[df["PROVINCIA"] != "S/I"]
+        .groupby(["PROVINCIA", "DISTRITO"], as_index=False)["DNI"]
+        .nunique()
+        .rename(columns={"DNI": "colaboradores"})
+    )
+    top_district = (
+        province_counts.sort_values(["PROVINCIA", "colaboradores"], ascending=[True, False])
+        .drop_duplicates("PROVINCIA")
+        .rename(columns={"DISTRITO": "distrito_principal"})
+    )
+    top_client = (
+        df[df["PROVINCIA"] != "S/I"]
+        .groupby(["PROVINCIA", "CLIENTE"], as_index=False)["DNI"]
+        .nunique()
+        .rename(columns={"DNI": "n_cliente"})
+        .sort_values(["PROVINCIA", "n_cliente"], ascending=[True, False])
+        .drop_duplicates("PROVINCIA")
+        .rename(columns={"CLIENTE": "cliente_top"})
+    )
+    points = (
+        d[["PROVINCIA", "count"]]
+        .merge(top_district[["PROVINCIA", "distrito_principal"]], on="PROVINCIA", how="left")
+        .merge(top_client[["PROVINCIA", "cliente_top", "n_cliente"]], on="PROVINCIA", how="left")
+    )
+    coords = load_province_coords()
+    points = points.merge(coords, on="PROVINCIA", how="left").dropna(subset=["lat", "lon"])
+    points["layer_type"] = "province_point"
+    points["radius_pixels"] = np.where(points["PROVINCIA"] == "LIMA", 4.5, 3.5)
+    points["label"] = points["PROVINCIA"] + " (" + points["count"].astype(int).astype(str) + ")"
+    points["cliente_top_det"] = (
+        points["cliente_top"].fillna("S/I") + " (" + points["n_cliente"].fillna(0).astype(int).astype(str) + ")"
+    )
 
+    label_data = points[points["count"] >= 50].copy()
     geo_data = {"type": "FeatureCollection", "features": features}
     geo_layer = pdk.Layer(
         "GeoJsonLayer",
+        id="geo_dept",
         data=geo_data,
         get_fill_color="properties.fill_color",
-        get_line_color=[200, 200, 200, 100],
-        line_width_min_pixels=0.5,
+        get_line_color=[100, 200, 160, 180],
+        line_width_min_pixels=1.2,
         pickable=True,
         stroked=True,
         filled=True,
         auto_highlight=True,
         update_triggers={"get_fill_color": [max_count]},
     )
-    bubble_layer = pdk.Layer(
+    point_layer = pdk.Layer(
         "ScatterplotLayer",
-        data=bubbles,
+        id="province_points",
+        data=points.to_dict("records"),
         get_position="[lon, lat]",
-        get_radius="radius",
-        get_fill_color="color",
-        get_line_color=[255, 255, 255, 220],
-        line_width_min_pixels=1,
+        get_radius="radius_pixels",
+        radius_units="pixels",
+        radius_min_pixels=3,
+        radius_max_pixels=8,
+        radius_scale=1,
+        get_fill_color=[251, 191, 36, 220],
+        get_line_color=[255, 230, 160, 230],
+        line_width_min_pixels=0.8,
         pickable=True,
     )
     text_layer = pdk.Layer(
         "TextLayer",
-        data=[b for b in bubbles if b["count"] > 40 or b["PROVINCIA"] == "LIMA"],
+        id="dept_labels",
+        data=label_data.to_dict("records"),
         get_position="[lon, lat]",
         get_text="label",
-        get_color=[15, 23, 42, 230],
+        get_color=[255, 255, 255, 220],
         get_size=12,
-        get_pixel_offset=[0, -15],
+        get_pixel_offset=[0, 0],
+        get_text_anchor="'middle'",
+        get_alignment_baseline="'center'",
+        get_font_weight=700,
+        background=False,
         pickable=False,
     )
 
+    def on_select(selection):
+        objects = selection.get("selection", {}).get("objects", {})
+        selected_obj = []
+        for layer_key, items in objects.items():
+            if "geo" in layer_key.lower() and items:
+                selected_obj = items
+                break
+        if not selected_obj:
+            return
+        dept = selected_obj[0].get("properties", {}).get("DEPT")
+        if dept:
+            st.session_state["f_prov"] = [dept]
+            st.rerun()
+
     st.pydeck_chart(
         pdk.Deck(
-            layers=[geo_layer, bubble_layer, text_layer],
-            initial_view_state=pdk.ViewState(latitude=-9.19, longitude=-75.0152, zoom=4.5, pitch=0),
-            map_style="https://basemaps.cartocdn.com/gl/positron-gl-style/style.json",
-            tooltip={"html": "<b>{PROVINCIA}</b><br/>Colaboradores: {count}<br/>Clientes: {clientes}<br/>Unidades: {unidades}"},
+            layers=[geo_layer, point_layer, text_layer],
+            initial_view_state=pdk.ViewState(
+                latitude=-9.5, longitude=-74.8, zoom=4.9, min_zoom=4.0, max_zoom=9, pitch=0
+            ),
+            map_style="https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json",
+            tooltip={
+                "html": (
+                    "<b>{PROVINCIA}</b><br/>"
+                    "Colaboradores: {count}<br/>"
+                    "Clientes: {clientes}<br/>"
+                    "Unidades: {unidades}<br/>"
+                    "Distrito principal: {distrito_principal}<br/>"
+                    "Cliente líder local: {cliente_top_det}"
+                )
+            },
         ),
         use_container_width=True,
         height=430,
+        on_select=on_select,
+        selection_mode="single-object",
     )
 
 
