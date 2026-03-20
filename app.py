@@ -35,33 +35,30 @@ ICON = {
 
 st.markdown("""
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
-html,body,[class*="css"],.stApp{font-family:'Inter',system-ui,sans-serif!important;color:#0f172a!important}
-.stApp{background:#f0f2f7}.block-container{padding:0 0 0 1.5rem!important;max-width:100%!important}
-section[data-testid="stSidebar"]{background:#fff;border-right:1px solid #e2e8f0}
-section[data-testid="stSidebar"]>div{padding:1.2rem 1rem}
-.sidebar-label{font-size:.67rem;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:#0f172a!important;margin:.85rem 0 .3rem;display:block}
-div[data-baseweb="select"]>div{background:#f8fafc!important;border:1px solid #cbd5e1!important;border-radius:8px!important;color:#0f172a!important}
-section[data-testid="stSidebar"] *{color:#0f172a!important}
-input,textarea,[data-baseweb="input"] input{color:#0f172a!important}
-.stButton>button{background:#00a885!important;color:#fff!important;border:none!important;border-radius:8px!important;font-weight:600!important;font-size:.8rem!important;width:100%;margin-top:.5rem}
-.hero{background:#fff;padding:14px 28px 12px;border-bottom:1px solid #e2e8f0;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px}
-.hero-title{font-size:1.2rem;font-weight:700;color:#0f172a}.hero-sub{font-size:.75rem;color:#64748b}.hero-badge{background:#e6f7f3;color:#00876a;border:1px solid rgba(0,168,133,.22);border-radius:20px;padding:5px 16px;font-size:.78rem;font-weight:700}
-.story-wrap{padding:10px 28px;background:#fff;border-bottom:1px solid #f1f5f9}.story-bar{background:linear-gradient(90deg,#e6f7f3,#f0f2f7);border-left:3px solid #00a885;border-radius:0 8px 8px 0;padding:8px 18px;font-size:.79rem;color:#374151;line-height:1.6}
-.kpi-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;padding:16px 28px 0}.kpi-card{background:#fff;border:1px solid #e2e8f0;border-radius:14px;padding:15px 18px 12px;box-shadow:0 1px 3px rgba(0,0,0,.06);position:relative}
-.kpi-bar{position:absolute;top:0;left:0;right:0;height:3px;border-radius:14px 14px 0 0}.kpi-label{font-size:.66rem;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:#94a3b8}.kpi-value{font-size:1.7rem;font-weight:700;color:#0f172a}
-.sec-head{font-size:.67rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#94a3b8;padding-bottom:6px;border-bottom:1.5px solid #e2e8f0;margin:0 0 10px;display:flex;align-items:center;gap:6px}
-div[data-testid="stPlotlyChart"]{background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:10px 12px;box-shadow:0 1px 3px rgba(0,0,0,.05);margin-bottom:14px}
-div[data-testid="stDeckGlJsonChart"]{border-radius:12px;overflow:hidden;border:1px solid #e2e8f0;box-shadow:0 1px 3px rgba(0,0,0,.05)}
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+html,body,[class*="css"],.stApp{font-family:'Inter',system-ui,sans-serif!important;color:#e2e8f0!important}
+.stApp{background:radial-gradient(circle at top,#1a2538 0%,#0b1220 46%,#070b14 100%)}
+.block-container{padding:0 1.4rem 1.3rem 2.6rem!important;max-width:100%!important}
+section[data-testid="stSidebar"]{background:#0f172a;border-right:1px solid #1f2937}
+section[data-testid="stSidebar"]>div{padding:1.2rem .9rem}
+section[data-testid="stSidebar"] *{color:#e5e7eb!important}
+.sidebar-label{font-size:.67rem;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:#94a3b8!important;margin:.85rem 0 .3rem;display:block}
+div[data-baseweb="select"]>div{background:#111827!important;border:1px solid #334155!important;border-radius:9px!important;color:#e2e8f0!important}
+input,textarea,[data-baseweb="input"] input{color:#e2e8f0!important}
+.stButton>button{background:linear-gradient(120deg,#00a885,#00c295)!important;color:#fff!important;border:none!important;border-radius:10px!important;font-weight:700!important;font-size:.8rem!important;width:100%;margin-top:.5rem}
+.hero{background:linear-gradient(125deg,rgba(15,23,42,.9),rgba(15,23,42,.68));padding:18px 30px 16px;border:1px solid rgba(148,163,184,.2);border-radius:18px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;backdrop-filter:blur(5px)}
+.hero-title{font-size:1.24rem;font-weight:800;color:#f8fafc}.hero-sub{font-size:.77rem;color:#94a3b8}.hero-badge{background:rgba(0,168,133,.16);color:#8bf5dd;border:1px solid rgba(45,212,191,.33);border-radius:999px;padding:6px 16px;font-size:.78rem;font-weight:700}
+.story-wrap{padding:12px 2px 2px}.story-bar{background:linear-gradient(96deg,rgba(15,23,42,.92),rgba(30,41,59,.72));border:1px solid rgba(148,163,184,.25);border-left:3px solid #22d3aa;border-radius:12px;padding:11px 18px;font-size:.8rem;color:#cbd5e1;line-height:1.6}
+.kpi-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;padding-top:14px}.kpi-card{background:linear-gradient(160deg,rgba(15,23,42,.95),rgba(15,23,42,.72));border:1px solid rgba(100,116,139,.32);border-radius:14px;padding:15px 18px 12px;box-shadow:0 8px 28px rgba(2,6,23,.36);position:relative}
+.kpi-bar{position:absolute;top:0;left:0;right:0;height:3px;border-radius:14px 14px 0 0}.kpi-label{font-size:.66rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#94a3b8}.kpi-value{font-size:1.75rem;font-weight:800;color:#f8fafc}
+.sec-head{font-size:.68rem;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:#94a3b8;padding-bottom:7px;border-bottom:1px solid rgba(148,163,184,.24);margin:0 0 10px;display:flex;align-items:center;gap:6px}
+div[data-testid="stPlotlyChart"]{background:linear-gradient(160deg,rgba(15,23,42,.96),rgba(15,23,42,.78));border:1px solid rgba(100,116,139,.3);border-radius:13px;padding:10px 12px;box-shadow:0 8px 22px rgba(2,6,23,.25);margin-bottom:16px}
+div[data-testid="stDeckGlJsonChart"]{border-radius:16px;overflow:hidden;border:1px solid rgba(94,234,212,.22);box-shadow:0 16px 34px rgba(2,6,23,.45)}
 #MainMenu,footer,header{visibility:hidden}
 button[data-testid="collapsedControl"]{display:flex!important;visibility:visible!important;opacity:1!important}
-.sidebar-toggle-floating{
-  position:fixed;top:14px;left:12px;z-index:9999;
-  background:#00a885;color:#fff;border:none;border-radius:999px;
-  padding:8px 12px;font-size:.78rem;font-weight:700;cursor:pointer;
-  box-shadow:0 3px 10px rgba(0,0,0,.16);transition:all .2s ease
-}
+.sidebar-toggle-floating{position:fixed;top:14px;left:12px;z-index:9999;background:linear-gradient(120deg,#00a885,#00c295);color:#fff;border:none;border-radius:999px;padding:8px 12px;font-size:.78rem;font-weight:800;cursor:pointer;box-shadow:0 3px 12px rgba(0,0,0,.3);transition:all .2s ease}
 .sidebar-toggle-floating:hover{filter:brightness(.95);transform:translateY(-1px)}
+[data-testid="stHorizontalBlock"]{gap:1.05rem!important}
 </style>
 """, unsafe_allow_html=True)
 
@@ -163,18 +160,18 @@ def load_geojson() -> dict | None:
 
 def chart_base(fig, height=270):
     fig.update_layout(
-        template="plotly_white", height=height, margin=dict(l=8, r=16, t=6, b=6),
-        paper_bgcolor="white", plot_bgcolor="white",
-        font_family="Inter, system-ui, sans-serif", font_color="#0f172a"
+        template="plotly_dark", height=height, margin=dict(l=8, r=16, t=6, b=6),
+        paper_bgcolor="rgba(15,23,42,0)", plot_bgcolor="rgba(15,23,42,0)",
+        font_family="Inter, system-ui, sans-serif", font_color="#dbeafe"
     )
-    fig.update_xaxes(tickfont_color="#0f172a", title_font_color="#0f172a")
-    fig.update_yaxes(tickfont_color="#0f172a", title_font_color="#0f172a")
+    fig.update_xaxes(tickfont_color="#cbd5e1", title_font_color="#cbd5e1", gridcolor="rgba(148,163,184,.2)")
+    fig.update_yaxes(tickfont_color="#cbd5e1", title_font_color="#cbd5e1", gridcolor="rgba(148,163,184,.2)")
     fig.update_traces(
-        textfont=dict(color="#0f172a"),
-        insidetextfont=dict(color="#0f172a"),
-        outsidetextfont=dict(color="#0f172a"),
+        textfont=dict(color="#f8fafc"),
+        insidetextfont=dict(color="#f8fafc"),
+        outsidetextfont=dict(color="#f8fafc"),
     )
-    fig.update_layout(legend=dict(font=dict(color="#0f172a")))
+    fig.update_layout(legend=dict(font=dict(color="#cbd5e1")))
     return fig
 
 
@@ -189,7 +186,7 @@ def clear_filters():
 
 def sidebar_filters(df: pd.DataFrame):
     with st.sidebar:
-        st.markdown(f'{ICON["filter"]}<span style="font-size:.95rem;font-weight:700;color:#0f172a"> Filtros</span>', unsafe_allow_html=True)
+        st.markdown(f'{ICON["filter"]}<span style="font-size:.95rem;font-weight:700;color:#e5e7eb"> Filtros</span>', unsafe_allow_html=True)
         st.markdown('<span class="sidebar-label">Cliente</span>', unsafe_allow_html=True)
         cli_o = sorted(df["CLIENTE"].dropna().unique())
         sync("f_cli", cli_o)
@@ -237,8 +234,6 @@ def sidebar_filters(df: pd.DataFrame):
 
 def generate_story(df: pd.DataFrame, full_df: pd.DataFrame) -> str:
     total_dni = df["DNI"].dropna().nunique()
-    total_full = max(full_df["DNI"].dropna().nunique(), 1)
-    pct_del_total = total_dni / total_full * 100
     n_prov = df["PROVINCIA"][df["PROVINCIA"] != "S/I"].nunique()
     n_cli = df["CLIENTE"].nunique()
     n_uni = df["UNIDAD"].nunique()
@@ -254,10 +249,10 @@ def generate_story(df: pd.DataFrame, full_df: pd.DataFrame) -> str:
     top_prov = top_prov_series.index[0] if not top_prov_series.empty else "S/I"
     top_prov_n = int(top_prov_series.iloc[0]) if not top_prov_series.empty else 0
     partes = [
-        (f"<strong>{total_dni:,} colaboradores activos</strong>" if pct_del_total >= 99 else f"Filtro activo: <strong>{total_dni:,}</strong> ({pct_del_total:.1f}% del total)."),
-        f"Operación en <strong>{n_prov} provincias</strong> bajo <strong>{n_cli} clientes</strong> y <strong>{n_uni:,} unidades</strong>.",
+        f"<strong>{total_dni:,}</strong> colaboradores activos en <strong>{n_prov}</strong> provincias.",
+        f"Estructura operativa: <strong>{n_cli}</strong> clientes y <strong>{n_uni:,}</strong> unidades.",
         f"Cliente líder: <strong>{top_cli}</strong> con <strong>{int(top_cli_series.iloc[0]) if not top_cli_series.empty else 0}</strong> colaboradores.",
-        f"<strong>{top_prov}</strong> concentra <strong>{(top_prov_n / max(total_dni,1) * 100):.1f}%</strong> del headcount.",
+        f"Mayor concentración: <strong>{top_prov}</strong> con <strong>{top_prov_n:,}</strong> colaboradores.",
     ]
 
     if n_cli > 1 and not cli_geo_series.empty:
@@ -352,21 +347,48 @@ def render_map(df: pd.DataFrame, geojson: dict | None):
     coords = load_province_coords()
     points = points.merge(coords, on="PROVINCIA", how="left").dropna(subset=["lat", "lon"])
     points["layer_type"] = "province_point"
-    points["radius_pixels"] = np.where(points["PROVINCIA"] == "LIMA", 4.5, 3.5)
+    points["radius_pixels"] = np.where(points["PROVINCIA"] == "LIMA", 3.8, 3.2)
     points["label"] = points["PROVINCIA"] + " (" + points["count"].astype(int).astype(str) + ")"
     points["cliente_top_det"] = (
         points["cliente_top"].fillna("S/I") + " (" + points["n_cliente"].fillna(0).astype(int).astype(str) + ")"
     )
 
-    label_data = points[points["count"] >= 50].copy()
+    op_points = (
+        df[df["PROVINCIA"] != "S/I"]
+        .groupby(["PROVINCIA", "DISTRITO", "UBICACION"], as_index=False)
+        .agg(
+            colaboradores=("DNI", "nunique"),
+            clientes=("CLIENTE", "nunique"),
+            unidades=("UNIDAD", "nunique"),
+        )
+    )
+    op_points = op_points.merge(coords, on="PROVINCIA", how="left").dropna(subset=["lat", "lon"])
+    op_points["cliente_principal"] = (
+        df[df["PROVINCIA"] != "S/I"]
+        .groupby(["PROVINCIA", "DISTRITO", "CLIENTE"])["DNI"]
+        .nunique()
+        .reset_index(name="n")
+        .sort_values(["PROVINCIA", "DISTRITO", "n"], ascending=[True, True, False])
+        .drop_duplicates(["PROVINCIA", "DISTRITO"])
+        .set_index(["PROVINCIA", "DISTRITO"])["CLIENTE"]
+        .reindex(list(zip(op_points["PROVINCIA"], op_points["DISTRITO"])))
+        .fillna("S/I")
+        .to_list()
+    )
+    offsets = op_points["DISTRITO"].fillna("").apply(lambda x: (sum(ord(c) for c in x) % 13) - 6)
+    op_points["lat"] = op_points["lat"] + offsets * 0.011
+    op_points["lon"] = op_points["lon"] + offsets * 0.013
+    op_points["point_size"] = 42
+
+    label_data = points[points["count"] >= 90].copy()
     geo_data = {"type": "FeatureCollection", "features": features}
     geo_layer = pdk.Layer(
         "GeoJsonLayer",
         id="geo_dept",
         data=geo_data,
         get_fill_color="properties.fill_color",
-        get_line_color=[100, 200, 160, 180],
-        line_width_min_pixels=1.2,
+        get_line_color=[129, 244, 208, 210],
+        line_width_min_pixels=1.7,
         pickable=True,
         stroked=True,
         filled=True,
@@ -383,9 +405,25 @@ def render_map(df: pd.DataFrame, geojson: dict | None):
         radius_min_pixels=3,
         radius_max_pixels=8,
         radius_scale=1,
-        get_fill_color=[251, 191, 36, 220],
-        get_line_color=[255, 230, 160, 230],
-        line_width_min_pixels=0.8,
+        get_fill_color=[245, 196, 92, 230],
+        get_line_color=[255, 231, 173, 250],
+        line_width_min_pixels=1.1,
+        stroked=True,
+        pickable=True,
+    )
+    ops_layer = pdk.Layer(
+        "ScatterplotLayer",
+        id="ops_points",
+        data=op_points.to_dict("records"),
+        get_position="[lon, lat]",
+        get_radius="point_size",
+        radius_units="pixels",
+        radius_min_pixels=2,
+        radius_max_pixels=3.6,
+        get_fill_color=[255, 223, 165, 190],
+        get_line_color=[255, 238, 199, 245],
+        stroked=True,
+        line_width_min_pixels=0.5,
         pickable=True,
     )
     text_layer = pdk.Layer(
@@ -394,8 +432,8 @@ def render_map(df: pd.DataFrame, geojson: dict | None):
         data=label_data.to_dict("records"),
         get_position="[lon, lat]",
         get_text="label",
-        get_color=[255, 255, 255, 220],
-        get_size=12,
+        get_color=[244, 248, 255, 230],
+        get_size=13,
         get_pixel_offset=[0, 0],
         get_text_anchor="'middle'",
         get_alignment_baseline="'center'",
@@ -406,23 +444,24 @@ def render_map(df: pd.DataFrame, geojson: dict | None):
 
     def on_select(selection):
         objects = selection.get("selection", {}).get("objects", {})
-        selected_obj = []
+        selected = []
         for layer_key, items in objects.items():
-            if "geo" in layer_key.lower() and items:
-                selected_obj = items
+            if items and ("geo" in layer_key.lower() or "province" in layer_key.lower()):
+                selected = items
                 break
-        if not selected_obj:
+        if not selected:
             return
-        dept = selected_obj[0].get("properties", {}).get("DEPT")
+        raw = selected[0]
+        dept = (raw.get("properties") or {}).get("DEPT") or raw.get("PROVINCIA")
         if dept:
             st.session_state["f_prov"] = [dept]
             st.rerun()
 
     st.pydeck_chart(
         pdk.Deck(
-            layers=[geo_layer, point_layer, text_layer],
+            layers=[geo_layer, ops_layer, point_layer, text_layer],
             initial_view_state=pdk.ViewState(
-                latitude=-9.5, longitude=-74.8, zoom=4.9, min_zoom=4.0, max_zoom=9, pitch=0
+                latitude=-9.15, longitude=-75.25, zoom=5.15, min_zoom=4.85, max_zoom=8.6, pitch=8
             ),
             map_style="https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json",
             tooltip={
@@ -432,12 +471,14 @@ def render_map(df: pd.DataFrame, geojson: dict | None):
                     "Clientes: {clientes}<br/>"
                     "Unidades: {unidades}<br/>"
                     "Distrito principal: {distrito_principal}<br/>"
-                    "Cliente líder local: {cliente_top_det}"
+                    "Cliente líder local: {cliente_top_det}<br/>"
+                    "Ubicación operativa: {UBICACION}<br/>"
+                    "Cliente principal en punto: {cliente_principal}"
                 )
             },
         ),
         use_container_width=True,
-        height=430,
+        height=460,
         on_select=on_select,
         selection_mode="single-object",
     )
@@ -475,22 +516,22 @@ def main():
     st.markdown(f'<div class="story-wrap"><div class="story-bar">{generate_story(filtered, df)}</div></div>', unsafe_allow_html=True)
     st.markdown('<div class="kpi-grid">', unsafe_allow_html=True)
     render_kpis(filtered)
-    st.markdown('</div><div style="height:14px"></div>', unsafe_allow_html=True)
+    st.markdown('</div><div style="height:22px"></div>', unsafe_allow_html=True)
 
-    st.markdown('<div style="padding:0 28px">', unsafe_allow_html=True)
-    c_map, c_rank = st.columns([1.7, 1])
+    st.markdown('<div style="padding:0 2px">', unsafe_allow_html=True)
+    c_map, c_rank = st.columns([1.85, 1], vertical_alignment="top")
     with c_map:
-        st.markdown(f'<div class="sec-head">{ICON["globe"]} Mapa nacional coroplético</div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="sec-head">{ICON["globe"]} Hero Insight · Cobertura nacional</div>', unsafe_allow_html=True)
         render_map(filtered, geo)
     with c_rank:
-        st.markdown(f'<div class="sec-head">{ICON["bar"]} Top clientes</div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="sec-head">{ICON["bar"]} Ranking de clientes</div>', unsafe_allow_html=True)
         rank = filtered.groupby("CLIENTE")["DNI"].nunique().sort_values(ascending=False).head(10).reset_index(name="N")
-        fig_rank = px.bar(rank, x="N", y="CLIENTE", orientation="h", color="N", color_continuous_scale=["#dcfce7", "#166534"], text="N")
+        fig_rank = px.bar(rank, x="N", y="CLIENTE", orientation="h", color="N", color_continuous_scale=["#052e2b", "#10b981"], text="N")
         fig_rank.update_layout(yaxis=dict(autorange="reversed"), coloraxis_showscale=False)
-        st.plotly_chart(chart_base(fig_rank, 430), use_container_width=True, config={"displayModeBar": False})
+        st.plotly_chart(chart_base(fig_rank, 460), use_container_width=True, config={"displayModeBar": False})
     st.markdown('</div>', unsafe_allow_html=True)
 
-    st.markdown('<div style="padding:4px 28px 0">', unsafe_allow_html=True)
+    st.markdown('<div style="padding:8px 2px 0">', unsafe_allow_html=True)
     a, b, c = st.columns(3)
     with a:
         st.markdown(f'<div class="sec-head">{ICON["bar"]} Régimen simplificado</div>', unsafe_allow_html=True)
@@ -510,7 +551,7 @@ def main():
         st.plotly_chart(chart_base(fig_mix, 260), use_container_width=True, config={"displayModeBar": False})
     st.markdown('</div>', unsafe_allow_html=True)
 
-    st.markdown('<div style="padding:4px 28px 0">', unsafe_allow_html=True)
+    st.markdown('<div style="padding:8px 2px 0">', unsafe_allow_html=True)
     st.markdown(f'<div class="sec-head">{ICON["bar"]} Top 10 distritos de operación</div>', unsafe_allow_html=True)
     dist = (filtered[filtered["DISTRITO"] != "S/I"].groupby(["DISTRITO", "PROVINCIA"])["DNI"].nunique().sort_values(ascending=False).head(10).reset_index(name="N"))
     dist["UBI"] = dist["DISTRITO"] + " / " + dist["PROVINCIA"]
@@ -519,7 +560,7 @@ def main():
     st.plotly_chart(chart_base(fig_dist, 330), use_container_width=True, config={"displayModeBar": False})
     st.markdown('</div>', unsafe_allow_html=True)
 
-    st.markdown('<div style="padding:4px 28px 0">', unsafe_allow_html=True)
+    st.markdown('<div style="padding:8px 2px 0">', unsafe_allow_html=True)
     st.markdown(f'<div class="sec-head">{ICON["list"]} Detalle de colaboradores activos</div>', unsafe_allow_html=True)
     cols_show = ["DNI", "APELLIDOS Y NOMBRES", "CARGO", "CLIENTE", "UNIDAD", "SUPERVISOR", "PROVINCIA", "DISTRITO", "REGIMEN_SIMPLE", "FECHA DE INGRESO", "ANTIGUEDAD_LABEL"]
     disp = filtered[cols_show].copy()
