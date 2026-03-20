@@ -814,10 +814,24 @@ def main():
 
     with c:
         st.markdown(f'<div class="sec-head">{ICON["bar"]} Mix Clientes</div>', unsafe_allow_html=True)
-        mix = filtered.groupby("CLIENTE")["DNI"].nunique().reset_index(name="N")
+        mix_all = filtered.groupby("CLIENTE")["DNI"].nunique().sort_values(ascending=False)
+        if len(mix_all) > 7:
+            mix_top = mix_all.head(7)
+            rest_sum = mix_all.iloc[7:].sum()
+            mix = pd.concat([mix_top, pd.Series({"Resto (Agrupado)": rest_sum})]).reset_index()
+            mix.columns = ["CLIENTE", "N"]
+        else:
+            mix = mix_all.reset_index(name="N")
+
         fig_mix = px.pie(mix, values="N", names="CLIENTE", color_discrete_sequence=PALETTE, hole=0.45)
-        fig_mix.update_traces(textposition='inside', textinfo='percent+label')
-        fig_mix.update_layout(showlegend=False)
+        
+        fig_mix.update_traces(
+            textposition='inside', 
+            textinfo='percent+label',
+            textfont=dict(size=10),
+            hovertemplate="<b>%{label}</b><br>Colaboradores: %{value}<br>Proporción: %{percent}<extra></extra>"
+        )
+        fig_mix.update_layout(showlegend=False, margin=dict(t=10, b=10, l=10, r=10))
         st.plotly_chart(chart_base(fig_mix, 260), use_container_width=True, config={"displayModeBar": False})
     st.markdown('</div>', unsafe_allow_html=True)
 
