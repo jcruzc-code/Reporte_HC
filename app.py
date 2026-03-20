@@ -1,8 +1,9 @@
 """
 Dashboard Ejecutivo — Gestión de Personal
 Cleaned Perfect S.A. · Servicios Generales & Limpieza
-Una sola página · scroll vertical · Pydeck map
+Una sola página · scroll vertical · Mapa coroplético Perú
 """
+import json
 import unicodedata
 from pathlib import Path
 
@@ -10,16 +11,15 @@ import numpy as np
 import pandas as pd
 import plotly.express as px
 import pydeck as pdk
+import requests
 import streamlit as st
 
-# ─────────────────────────────────────────────────────────────────────────────
 st.set_page_config(
     page_title="Dashboard Ejecutivo · Gestión de Personal",
     layout="wide",
     initial_sidebar_state="expanded",
 )
 
-# ── SVG icons ─────────────────────────────────────────────────────────────────
 ICON = {
     "users": '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#00a885" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>',
     "building": '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/><line x1="12" y1="12" x2="12" y2="16"/><line x1="10" y1="14" x2="14" y2="14"/></svg>',
@@ -33,166 +33,66 @@ ICON = {
     "list": '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" stroke-width="2.2" stroke-linecap="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>',
 }
 
-# ── CSS ───────────────────────────────────────────────────────────────────────
 st.markdown("""
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
 html,body,[class*="css"],.stApp{font-family:'Inter',system-ui,sans-serif!important}
-.stApp{background:#f0f2f7}
-.block-container{padding:0!important;max-width:100%!important}
-
-/* Sidebar */
+.stApp{background:#f0f2f7}.block-container{padding:0!important;max-width:100%!important}
 section[data-testid="stSidebar"]{background:#fff;border-right:1px solid #e2e8f0}
-section[data-testid="stSidebar"]>div{padding:1.2rem 1rem}
-section[data-testid="stSidebar"] *{color:#374151!important}
-.sidebar-label{font-size:.67rem;font-weight:700;letter-spacing:.07em;text-transform:uppercase;
-  color:#94a3b8!important;margin:.85rem 0 .3rem;display:block}
-div[data-baseweb="select"]>div{background:#f8fafc!important;border:1px solid #cbd5e1!important;
-  border-radius:8px!important;color:#1e293b!important;font-size:.82rem!important}
-span[data-baseweb="tag"]{background:#e6f7f3!important;color:#00876a!important;
-  border-radius:4px!important;font-size:.72rem!important}
-.stButton>button{background:#00a885!important;color:#fff!important;border:none!important;
-  border-radius:8px!important;font-weight:600!important;font-size:.8rem!important;
-  width:100%;margin-top:.5rem}
-.stButton>button:hover{background:#00876a!important}
-
-/* Hero */
-.hero{background:#fff;padding:14px 28px 12px;border-bottom:1px solid #e2e8f0;
-  display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px}
-.hero-brand{display:flex;align-items:center;gap:14px}
-.hero-icon{width:44px;height:44px;background:linear-gradient(135deg,#00a885,#34d399);
-  border-radius:11px;display:flex;align-items:center;justify-content:center;
-  box-shadow:0 2px 8px rgba(0,168,133,.28);flex-shrink:0}
-.hero-title{font-size:1.2rem;font-weight:700;color:#0f172a;letter-spacing:-.2px}
-.hero-sub{font-size:.75rem;color:#64748b;margin-top:2px}
-.hero-badge{background:#e6f7f3;color:#00876a;border:1px solid rgba(0,168,133,.22);
-  border-radius:20px;padding:5px 16px;font-size:.78rem;font-weight:700;white-space:nowrap}
-
-/* Story */
-.story-wrap{padding:10px 28px;background:#fff;border-bottom:1px solid #f1f5f9}
-.story-bar{background:linear-gradient(90deg,#e6f7f3,#f0f2f7);border-left:3px solid #00a885;
-  border-radius:0 8px 8px 0;padding:8px 18px;font-size:.79rem;color:#374151;line-height:1.6}
-.story-bar strong{color:#00876a}
-
-/* KPI grid */
-.kpi-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:14px;padding:16px 28px 0}
-.kpi-card{background:#fff;border:1px solid #e2e8f0;border-radius:14px;
-  padding:15px 18px 12px;box-shadow:0 1px 3px rgba(0,0,0,.06);position:relative;overflow:hidden}
-.kpi-bar{position:absolute;top:0;left:0;right:0;height:3px;border-radius:14px 14px 0 0}
-.kpi-label{font-size:.66rem;font-weight:700;letter-spacing:.07em;text-transform:uppercase;
-  color:#94a3b8;margin-bottom:6px}
-.kpi-value{font-size:1.95rem;font-weight:700;color:#0f172a;letter-spacing:-.5px;line-height:1}
-.kpi-sub{font-size:.7rem;color:#94a3b8;margin-top:4px}
-.kpi-trend{position:absolute;top:12px;right:12px;background:#f0fdf4;color:#16a34a;
-  border-radius:8px;padding:2px 8px;font-size:.67rem;font-weight:700}
-.kpi-icon{position:absolute;bottom:8px;right:10px;opacity:.15}
-
-/* Section header */
-.sec-head{font-size:.67rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;
-  color:#94a3b8;padding-bottom:6px;border-bottom:1.5px solid #e2e8f0;
-  margin:0 0 10px;display:flex;align-items:center;gap:6px}
-
-/* Charts */
-div[data-testid="stPlotlyChart"]{background:#fff;border:1px solid #e2e8f0;border-radius:12px;
-  padding:10px 12px;box-shadow:0 1px 3px rgba(0,0,0,.05);margin-bottom:14px}
-
-/* Rank list */
-.rank-scroll{max-height:420px;overflow-y:auto;padding-right:4px}
-.rank-scroll::-webkit-scrollbar{width:4px}
-.rank-scroll::-webkit-scrollbar-thumb{background:#cbd5e1;border-radius:2px}
-.rank-item{display:flex;align-items:center;gap:10px;padding:7px 0;
-  border-bottom:1px solid #f1f5f9;font-size:.78rem}
-.rank-item:last-child{border-bottom:none}
-.rank-num{width:18px;font-size:.7rem;font-weight:700;color:#94a3b8;text-align:center;flex-shrink:0}
-.rank-num.gold{color:#d97706;font-size:.85rem}
-.rank-name{flex:1;font-weight:600;color:#1e293b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.rank-bar-bg{height:4px;background:#f1f5f9;border-radius:2px;margin-bottom:2px;width:56px}
-.rank-bar-fill{height:4px;border-radius:2px;background:linear-gradient(90deg,#00a885,#34d399)}
-.rank-val{font-size:.72rem;font-weight:700;color:#00876a;text-align:right;min-width:32px}
-
-/* Bottom story */
-.bottom-story{background:linear-gradient(90deg,#e6f7f3,#f0f2f7);border-top:1px solid #e2e8f0;
-  padding:14px 28px;display:flex;gap:26px;align-items:center;flex-wrap:wrap;margin-top:4px}
-.b-stat{text-align:center}
-.b-val{font-size:1.25rem;font-weight:700;color:#00876a}
-.b-lbl{font-size:.63rem;text-transform:uppercase;letter-spacing:.05em;color:#94a3b8;font-weight:700;margin-top:1px}
-.b-div{width:1px;height:36px;background:#e2e8f0}
-.b-text{flex:1;font-size:.79rem;color:#374151;line-height:1.65;min-width:200px}
-
-/* Filter badges */
-.fbadge{display:inline-block;background:#eff6ff;color:#2563eb;
-  border:1px solid rgba(37,99,235,.2);border-radius:20px;
-  padding:2px 10px;font-size:.7rem;font-weight:600;margin:1px 2px}
-
-/* Pydeck */
-div[data-testid="stDeckGlJsonChart"]{border-radius:12px;overflow:hidden;
-  border:1px solid #e2e8f0;box-shadow:0 1px 3px rgba(0,0,0,.05)}
-
-/* Table */
-div[data-testid="stDataFrame"]{border-radius:10px!important;overflow:hidden}
-
-/* Hide branding */
+section[data-testid="stSidebar"]>div{padding:1.2rem 1rem}.sidebar-label{font-size:.67rem;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:#94a3b8!important;margin:.85rem 0 .3rem;display:block}
+div[data-baseweb="select"]>div{background:#f8fafc!important;border:1px solid #cbd5e1!important;border-radius:8px!important}
+.stButton>button{background:#00a885!important;color:#fff!important;border:none!important;border-radius:8px!important;font-weight:600!important;font-size:.8rem!important;width:100%;margin-top:.5rem}
+.hero{background:#fff;padding:14px 28px 12px;border-bottom:1px solid #e2e8f0;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px}
+.hero-title{font-size:1.2rem;font-weight:700;color:#0f172a}.hero-sub{font-size:.75rem;color:#64748b}.hero-badge{background:#e6f7f3;color:#00876a;border:1px solid rgba(0,168,133,.22);border-radius:20px;padding:5px 16px;font-size:.78rem;font-weight:700}
+.story-wrap{padding:10px 28px;background:#fff;border-bottom:1px solid #f1f5f9}.story-bar{background:linear-gradient(90deg,#e6f7f3,#f0f2f7);border-left:3px solid #00a885;border-radius:0 8px 8px 0;padding:8px 18px;font-size:.79rem;color:#374151;line-height:1.6}
+.kpi-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:14px;padding:16px 28px 0}.kpi-card{background:#fff;border:1px solid #e2e8f0;border-radius:14px;padding:15px 18px 12px;box-shadow:0 1px 3px rgba(0,0,0,.06);position:relative}
+.kpi-bar{position:absolute;top:0;left:0;right:0;height:3px;border-radius:14px 14px 0 0}.kpi-label{font-size:.66rem;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:#94a3b8}.kpi-value{font-size:1.7rem;font-weight:700;color:#0f172a}
+.sec-head{font-size:.67rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#94a3b8;padding-bottom:6px;border-bottom:1.5px solid #e2e8f0;margin:0 0 10px;display:flex;align-items:center;gap:6px}
+div[data-testid="stPlotlyChart"]{background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:10px 12px;box-shadow:0 1px 3px rgba(0,0,0,.05);margin-bottom:14px}
+div[data-testid="stDeckGlJsonChart"]{border-radius:12px;overflow:hidden;border:1px solid #e2e8f0;box-shadow:0 1px 3px rgba(0,0,0,.05)}
 #MainMenu,footer,header{visibility:hidden}
 </style>
 """, unsafe_allow_html=True)
 
-# ── Constants ─────────────────────────────────────────────────────────────────
-DATA_FILE   = Path("datos_git.xlsx")
-COORDS_FILE = Path("province_coords.csv")
+DATA_FILE = Path("datos_git.xlsx")
+GEOJSON_LOCAL = Path("peru_departamentos.geojson")
 
 PROVINCE_FIX = {
-    "CUZCO": "CUSCO", "SAN ROMÁN": "SAN ROMAN", "HUÁNUCO": "HUANUCO",
-    "TARAPOTO": "SAN MARTIN", "PUCALLPA": "CORONEL PORTILLO",
-    "LAREDO": "TRUJILLO", "CHIMBOTE": "SANTA", "IQUITOS": "MAYNAS",
-    "JULIACA": "SAN ROMAN",
+    "CUZCO": "CUSCO", "CUSCO": "CUSCO", "LIMA METROPOLITANA": "LIMA",
+    "TUMBES": "TUMBES", "JUNIN": "JUNIN", "HUANUCO": "HUANUCO",
 }
 
-BUILTIN_COORDS = {
-    "LIMA": (-12.0464, -77.0428), "CALLAO": (-12.0595, -77.1181),
-    "AREQUIPA": (-16.409, -71.5375), "TRUJILLO": (-8.111, -79.0288),
-    "PIURA": (-5.1945, -80.6328), "CUSCO": (-13.5319, -71.9675),
-    "HUANCAYO": (-12.0651, -75.2049), "CHICLAYO": (-6.7714, -79.8409),
-    "ICA": (-14.0678, -75.7286), "TACNA": (-18.0066, -70.2463),
-    "MAYNAS": (-3.7491, -73.2538), "PUNO": (-15.8402, -70.0219),
-    "SAN ROMAN": (-15.4997, -70.1327), "HUANUCO": (-9.9306, -76.2422),
-    "CAJAMARCA": (-7.1639, -78.5003), "AYACUCHO": (-13.1588, -74.2236),
-    "SANTA": (-9.0755, -78.5943), "SULLANA": (-4.8996, -80.6883),
-    "SAN MARTIN": (-6.5, -76.3667), "CORONEL PORTILLO": (-8.3791, -74.5539),
-    "TUMBES": (-3.5669, -80.4515), "HUARAL": (-11.4954, -77.2069),
-    "HUAROCHIRI": (-11.9917, -76.2225), "BARRANCA": (-10.75, -77.7667),
-    "CHINCHA": (-13.4125, -76.1386), "PISCO": (-13.7141, -76.2033),
-    "CAÑETE": (-13.0797, -76.3697), "CANETE": (-13.0797, -76.3697),
-    "CHEPEN": (-7.2269, -79.4321), "ASCOPE": (-7.7202, -79.1388),
-    "LAMBAYEQUE": (-6.7027, -79.9064), "VIRU": (-8.4122, -78.7533),
-    "JAEN": (-5.7072, -78.807), "MOYOBAMBA": (-6.034, -76.972),
-    "PACASMAYO": (-7.4011, -79.5703), "CHOTA": (-6.5587, -78.6521),
-    "ANDAHUAYLAS": (-13.656, -73.383), "ABANCAY": (-13.6345, -72.8814),
-    "APURIMAC": (-13.6345, -72.8814), "PATAZ": (-8.0, -77.0),
-    "ACOBAMBA": (-12.8494, -74.5722), "HUANCAVELICA": (-12.787, -74.9768),
-    "NAZCA": (-14.829, -74.9433), "OTUZCO": (-7.8999, -78.5679),
-}
-
-PALETTE = ["#00a885","#2563eb","#7c3aed","#d97706","#16a34a",
-           "#0891b2","#dc2626","#9333ea","#ea580c","#475569"]
+PALETTE = ["#00a885", "#2563eb", "#7c3aed", "#d97706", "#16a34a",
+           "#0891b2", "#dc2626", "#9333ea", "#ea580c", "#475569"]
 
 
-# ── Helpers ───────────────────────────────────────────────────────────────────
 def norm(v) -> str:
     if pd.isna(v):
         return "S/I"
     s = str(v).strip().upper()
     return " ".join(
-        "".join(c for c in unicodedata.normalize("NFD", s)
-                if unicodedata.category(c) != "Mn").split()
+        "".join(c for c in unicodedata.normalize("NFD", s) if unicodedata.category(c) != "Mn").split()
     ) or "S/I"
+
+
+def classify_regimen(v) -> str:
+    if pd.isna(v):
+        return "Sin info"
+    r = str(v).upper()
+    if ((r.startswith("FT") and ">= 8H" in r) or ("PERFECT" in r and ">= 8H" in r) or r == "FULL TIME"):
+        return "Full Time ≥8H"
+    if r.startswith("FT"):
+        return "Full Time <8H"
+    if r.startswith("PT") or "PART" in r:
+        return "Part Time"
+    return "Otros"
 
 
 @st.cache_data(show_spinner=False)
 def load_data(path: Path) -> pd.DataFrame:
     df = pd.read_excel(path, sheet_name="WIDE")
     df.columns = [norm(c) for c in df.columns]
-    for col in ["PROVINCIA", "DISTRITO", "CLIENTE", "UNIDAD",
-                "CARGO", "PLANILLA", "REGIMEN PLANILLA"]:
+    for col in ["PROVINCIA", "DISTRITO", "CLIENTE", "UNIDAD", "CARGO", "PLANILLA", "REGIMEN PLANILLA", "SUPERVISOR", "TAREADOR"]:
         if col in df.columns:
             df[col] = df[col].map(norm)
     df["PROVINCIA"] = df["PROVINCIA"].replace(PROVINCE_FIX)
@@ -200,96 +100,38 @@ def load_data(path: Path) -> pd.DataFrame:
     df["DNI"] = pd.to_numeric(df["DNI"], errors="coerce").astype("Int64")
     df = df[df["FECHA DE CESE"].isna()].copy()
     df.drop(columns=["FECHA DE CESE"], errors="ignore", inplace=True)
+    hoy = pd.Timestamp.today().normalize()
+    df["antiguedad_dias"] = (hoy - df["FECHA DE INGRESO"]).dt.days
+    df["antiguedad_meses"] = (df["antiguedad_dias"] / 30.44).clip(lower=0)
+    df["antiguedad"] = (df["antiguedad_dias"] / 365.25).clip(lower=0)
+    df["REGIMEN_SIMPLE"] = df["REGIMEN PLANILLA"].map(classify_regimen)
+    df["ANTIGUEDAD_LABEL"] = df["antiguedad"].fillna(0).apply(lambda x: f"{int(x*12)}m" if x < 1 else f"{x:.1f}a")
     return df
 
 
 @st.cache_data(show_spinner=False)
-def get_coords(provinces: tuple) -> dict:
-    cache = {}
-    if COORDS_FILE.exists():
-        try:
-            c = pd.read_csv(COORDS_FILE)
-            c.columns = [x.upper() for x in c.columns]
-            if "PROVINCIA" in c.columns:
-                for _, row in c.iterrows():
-                    cache[norm(row["PROVINCIA"])] = (float(row["LAT"]), float(row["LON"]))
-        except Exception:
-            pass
-    result = {}
-    for p in provinces:
-        if p in ("S/I", ""):
-            continue
-        if p in BUILTIN_COORDS:
-            result[p] = BUILTIN_COORDS[p]
-        elif p in cache:
-            result[p] = cache[p]
-    return result
+def load_geojson() -> dict | None:
+    url = "https://raw.githubusercontent.com/juancgalvez/peru-geojson/master/geojson/peru_departamentos.geojson"
+    try:
+        data = requests.get(url, timeout=10)
+        data.raise_for_status()
+        geo = data.json()
+        GEOJSON_LOCAL.write_text(json.dumps(geo, ensure_ascii=False), encoding="utf-8")
+        return geo
+    except Exception:
+        if GEOJSON_LOCAL.exists():
+            return json.loads(GEOJSON_LOCAL.read_text(encoding="utf-8"))
+    return None
 
 
-def chart_base(fig, height: int = 270):
+def chart_base(fig, height=270):
     fig.update_layout(
-        template="plotly_white", height=height,
-        margin=dict(l=8, r=16, t=6, b=6),
-        paper_bgcolor="white", plot_bgcolor="white",
-        font_family="Inter, system-ui, sans-serif",
-        font_color="#111827",
-        legend=dict(font=dict(size=10, color="#374151")),
-        uniformtext_minsize=9, uniformtext_mode="hide",
-    )
-    fig.update_xaxes(tickfont=dict(color="#6b7280", size=10),
-                     gridcolor="#f1f5f9", zeroline=False, automargin=True)
-    fig.update_yaxes(tickfont=dict(color="#374151", size=10),
-                     gridcolor="#f1f5f9", zeroline=False, automargin=True)
-    return fig
-
-
-def hbar(fig, max_v: float, left: int = 180, ysize: int = 10):
-    fig.update_traces(
-        textposition="outside", texttemplate="%{x:,.0f}",
-        cliponaxis=False, textfont=dict(size=10, color="#374151"),
-    )
-    fig.update_layout(
-        margin=dict(l=left, r=52, t=6, b=6), showlegend=False,
-        yaxis=dict(autorange="reversed", tickfont_size=ysize, title=""),
-        xaxis=dict(title="", showgrid=True, gridcolor="#f1f5f9",
-                   range=[0, max(1, max_v * 1.22)]),
+        template="plotly_white", height=height, margin=dict(l=8, r=16, t=6, b=6),
+        paper_bgcolor="white", plot_bgcolor="white", font_family="Inter, system-ui, sans-serif"
     )
     return fig
 
 
-def pct(num: float, den: float) -> float:
-    return (num / den * 100.0) if den else 0.0
-
-
-def workforce_insights(df: pd.DataFrame) -> dict:
-    total = df["DNI"].dropna().nunique()
-    ingresados = df["FECHA DE INGRESO"].dropna()
-    corte = pd.Timestamp.today().normalize()
-
-    if ingresados.empty:
-        return {
-            "total": total,
-            "estabilidad_6m": 0.0,
-            "mediana_meses": 0.0,
-            "recientes_90d": 0,
-            "recientes_90d_pct": 0.0,
-        }
-
-    meses_antig = ((corte - ingresados).dt.days / 30.44).clip(lower=0)
-    estab_6m = pct((meses_antig >= 6).sum(), len(meses_antig))
-    mediana = float(meses_antig.median())
-    rec_90 = int((corte - ingresados).dt.days.le(90).sum())
-
-    return {
-        "total": total,
-        "estabilidad_6m": estab_6m,
-        "mediana_meses": mediana,
-        "recientes_90d": rec_90,
-        "recientes_90d_pct": pct(rec_90, total),
-    }
-
-
-# ── Sidebar ───────────────────────────────────────────────────────────────────
 def sync(key, valid):
     st.session_state[key] = [v for v in st.session_state.get(key, []) if v in valid]
 
@@ -301,14 +143,7 @@ def clear_filters():
 
 def sidebar_filters(df: pd.DataFrame):
     with st.sidebar:
-        st.markdown(
-            f'<div style="display:flex;align-items:center;gap:8px;padding:.2rem 0 .9rem">'
-            f'{ICON["filter"]}'
-            f'<span style="font-size:.95rem;font-weight:700;color:#0f172a">Filtros</span>'
-            f'</div>',
-            unsafe_allow_html=True,
-        )
-
+        st.markdown(f'{ICON["filter"]}<span style="font-size:.95rem;font-weight:700;color:#0f172a"> Filtros</span>', unsafe_allow_html=True)
         st.markdown('<span class="sidebar-label">Cliente</span>', unsafe_allow_html=True)
         cli_o = sorted(df["CLIENTE"].dropna().unique())
         sync("f_cli", cli_o)
@@ -327,436 +162,294 @@ def sidebar_filters(df: pd.DataFrame):
         car = st.multiselect("", car_o, key="f_car", placeholder="Todos los cargos")
         base = base[base["CARGO"].isin(car)] if car else base
 
-        st.markdown('<span class="sidebar-label">Régimen de planilla</span>', unsafe_allow_html=True)
-        reg_o = sorted(base["REGIMEN PLANILLA"].dropna().unique()) if "REGIMEN PLANILLA" in df.columns else []
+        st.markdown('<span class="sidebar-label">Régimen</span>', unsafe_allow_html=True)
+        reg_o = sorted(base["REGIMEN PLANILLA"].dropna().unique())
         sync("f_reg", reg_o)
         reg = st.multiselect("", reg_o, key="f_reg", placeholder="Todos los regímenes")
-        base2 = base[base["REGIMEN PLANILLA"].isin(reg)] if reg else base
+        base = base[base["REGIMEN PLANILLA"].isin(reg)] if reg else base
 
         st.markdown('<span class="sidebar-label">Provincia</span>', unsafe_allow_html=True)
-        prov_o = sorted(base2["PROVINCIA"].dropna().unique())
+        prov_o = sorted(base["PROVINCIA"].dropna().unique())
         sync("f_prov", prov_o)
         prov = st.multiselect("", prov_o, key="f_prov", placeholder="Todas las provincias")
 
-        st.markdown("<div style='height:6px'></div>", unsafe_allow_html=True)
         st.button("Limpiar filtros", on_click=clear_filters, use_container_width=True)
-        st.markdown(
-            '<div style="font-size:.65rem;color:#94a3b8;text-align:center;margin-top:8px">'
-            'datos_git.xlsx · WIDE · Solo activos</div>',
-            unsafe_allow_html=True,
-        )
 
     f = df.copy()
-    if cli:  f = f[f["CLIENTE"].isin(cli)]
-    if uni:  f = f[f["UNIDAD"].isin(uni)]
-    if car:  f = f[f["CARGO"].isin(car)]
-    if reg:  f = f[f["REGIMEN PLANILLA"].isin(reg)]
-    if prov: f = f[f["PROVINCIA"].isin(prov)]
-    return f, cli + uni + car + reg + prov
+    if cli:
+        f = f[f["CLIENTE"].isin(cli)]
+    if uni:
+        f = f[f["UNIDAD"].isin(uni)]
+    if car:
+        f = f[f["CARGO"].isin(car)]
+    if reg:
+        f = f[f["REGIMEN PLANILLA"].isin(reg)]
+    if prov:
+        f = f[f["PROVINCIA"].isin(prov)]
+    return f
 
 
-# ── KPIs ──────────────────────────────────────────────────────────────────────
-def render_kpis(df: pd.DataFrame):
-    ins = workforce_insights(df)
-    kdata = [
-        (ICON["users"],    "#00a885", "Colaboradores activos",
-         f'{df["DNI"].dropna().nunique():,}',        "DNIs únicos en planilla", "+12%"),
-        (ICON["building"], "#2563eb", "Clientes atendidos",
-         f'{df["CLIENTE"].nunique():,}',              "Contratos vigentes",      "Activos"),
-        (ICON["pin"],      "#7c3aed", "Unidades operativas",
-         f'{df["UNIDAD"].nunique():,}',               "Puntos de servicio",      "+8%"),
-        (ICON["map"],      "#d97706", "Cobertura nacional",
-         f'{df["PROVINCIA"][df["PROVINCIA"]!="S/I"].nunique()} prov.',
-         "Provincias activas", "Nacional"),
-        (ICON["star"],     "#16a34a", "Estabilidad laboral (6m)",
-         f'{ins["estabilidad_6m"]:.1f}%',            "Personal con +6 meses de antigüedad", "Dinámico"),
+def generate_story(df: pd.DataFrame, full_df: pd.DataFrame) -> str:
+    total_dni = df["DNI"].dropna().nunique()
+    total_full = max(full_df["DNI"].dropna().nunique(), 1)
+    pct_del_total = total_dni / total_full * 100
+    n_prov = df["PROVINCIA"][df["PROVINCIA"] != "S/I"].nunique()
+    n_cli = df["CLIENTE"].nunique()
+    n_uni = df["UNIDAD"].nunique()
+    hoy = pd.Timestamp.today().normalize()
+
+    if total_dni == 0:
+        return "Sin registros para los filtros seleccionados."
+
+    top_cli_series = df.groupby("CLIENTE")["DNI"].nunique().sort_values(ascending=False)
+    top_prov_series = df[df["PROVINCIA"] != "S/I"].groupby("PROVINCIA")["DNI"].nunique().sort_values(ascending=False)
+    cli_geo_series = df[df["PROVINCIA"] != "S/I"].groupby("CLIENTE")["PROVINCIA"].nunique().sort_values(ascending=False)
+
+    top_cli = top_cli_series.index[0] if not top_cli_series.empty else "S/I"
+    top_prov = top_prov_series.index[0] if not top_prov_series.empty else "S/I"
+    top_prov_n = int(top_prov_series.iloc[0]) if not top_prov_series.empty else 0
+    nuevos_90d = df[df["FECHA DE INGRESO"] >= hoy - pd.Timedelta(days=90)]["DNI"].nunique()
+    pct_nuevos = nuevos_90d / max(total_dni, 1) * 100
+    pct_ft = df["REGIMEN PLANILLA"].str.startswith("FT", na=False).mean() * 100
+
+    partes = [
+        (f"<strong>{total_dni:,} colaboradores activos</strong>" if pct_del_total >= 99 else f"Filtro activo: <strong>{total_dni:,}</strong> ({pct_del_total:.1f}% del total)."),
+        f"Operación en <strong>{n_prov} provincias</strong> bajo <strong>{n_cli} clientes</strong> y <strong>{n_uni:,} unidades</strong>.",
+        f"Cliente líder: <strong>{top_cli}</strong>.",
+        f"<strong>{top_prov}</strong> concentra <strong>{(top_prov_n / max(total_dni,1) * 100):.1f}%</strong> del headcount.",
+        f"<strong>{nuevos_90d:,}</strong> incorporaciones en 90 días ({pct_nuevos:.1f}%).",
+        f"<strong>{pct_ft:.0f}%</strong> de la plantilla en esquema Full Time.",
     ]
-    cols = st.columns(5)
-    for col, (icon, color, label, value, sub, trend) in zip(cols, kdata):
+
+    if n_cli > 1 and not cli_geo_series.empty:
+        partes.append(f"Mayor cobertura geográfica: <strong>{cli_geo_series.index[0]}</strong> con <strong>{int(cli_geo_series.iloc[0])} provincias</strong>.")
+
+    return " &nbsp;·&nbsp; ".join(partes)
+
+
+def render_kpis(df: pd.DataFrame):
+    total = df["DNI"].dropna().nunique()
+    nuevos_90 = df[df["FECHA DE INGRESO"] >= (pd.Timestamp.today().normalize() - pd.Timedelta(days=90))]["DNI"].nunique()
+    ft_pct = df["REGIMEN PLANILLA"].str.startswith("FT", na=False).mean() * 100
+
+    cards = [
+        ("#00a885", "Colaboradores", f"{total:,}"),
+        ("#2563eb", "Clientes", f"{df['CLIENTE'].nunique():,}"),
+        ("#7c3aed", "Unidades", f"{df['UNIDAD'].nunique():,}"),
+        ("#d97706", "Provincias", f"{df[df['PROVINCIA']!='S/I']['PROVINCIA'].nunique():,}"),
+        ("#16a34a", "Nuevos 90d", f"{nuevos_90:,}"),
+        ("#0891b2", "% Full Time", f"{ft_pct:.1f}%"),
+    ]
+
+    for col, (color, label, value) in zip(st.columns(6), cards):
         with col:
             st.markdown(
-                f'<div class="kpi-card">'
-                f'<div class="kpi-bar" style="background:{color}"></div>'
-                f'<div class="kpi-label">{label}</div>'
-                f'<div class="kpi-value">{value}</div>'
-                f'<div class="kpi-sub">{sub}</div>'
-                f'<div class="kpi-trend">{trend}</div>'
-                f'<div class="kpi-icon">{icon}</div>'
-                f'</div>',
+                f'<div class="kpi-card"><div class="kpi-bar" style="background:{color}"></div>'
+                f'<div class="kpi-label">{label}</div><div class="kpi-value">{value}</div></div>',
                 unsafe_allow_html=True,
             )
 
 
-# ── Pydeck map ────────────────────────────────────────────────────────────────
-def render_map(df: pd.DataFrame, coords: dict):
-    g = (df[df["PROVINCIA"] != "S/I"]
-         .groupby("PROVINCIA", as_index=False)
-         .agg(count=("DNI","nunique"), clientes=("CLIENTE","nunique"),
-              unidades=("UNIDAD","nunique"), distritos=("DISTRITO", "nunique")))
-    total_provincias = int(g["PROVINCIA"].nunique())
-    g["lat"] = g["PROVINCIA"].map(lambda p: coords.get(p,(None,None))[0])
-    g["lon"] = g["PROVINCIA"].map(lambda p: coords.get(p,(None,None))[1])
-    g = g.dropna(subset=["lat","lon"])
-    if g.empty:
-        st.info("Sin coordenadas para las provincias seleccionadas.")
+def render_map(df: pd.DataFrame, geojson: dict | None):
+    if not geojson:
+        st.warning("No se pudo cargar el GeoJSON de Perú.")
         return
-    cobertura = pct(len(g), total_provincias)
 
-    mx = g["count"].max()
-
-    def color(row):
-        if row["PROVINCIA"] == "LIMA":
-            return [220, 38, 38, 215]
-        r = (row["count"] / max(mx, 1)) ** 0.5
-        return [int(r*37), int(168 - r*88), int(133 + r*122), 205]
-
-    g["color"]  = g.apply(color, axis=1)
-    g["radius"] = g["count"].apply(
-        lambda x: max(14000, min(85000, 14000 + (np.log1p(x)/np.log1p(max(mx,1)))*71000))
+    d = df[df["PROVINCIA"] != "S/I"].groupby("PROVINCIA", as_index=False).agg(
+        count=("DNI", "nunique"), clientes=("CLIENTE", "nunique"), unidades=("UNIDAD", "nunique")
     )
-    g["tip"] = g.apply(
-        lambda r: (
-            f"{r['PROVINCIA']}  ·  {int(r['count']):,} colaboradores  ·  "
-            f"{int(r['clientes'])} clientes  ·  {int(r['distritos'])} distritos"
-        ),
-        axis=1,
-    )
+    counts = {r["PROVINCIA"]: int(r["count"]) for _, r in d.iterrows()}
+    max_count = max(counts.values()) if counts else 1
 
-    peru_border = pdk.Layer(
+    features = []
+    bubbles = []
+    for feat in geojson.get("features", []):
+        props = feat.get("properties", {})
+        name = norm(props.get("NOMBDEP") or props.get("NOMBPROV") or props.get("name") or "S/I")
+        n = counts.get(name, 0)
+        color_ratio = n / max(max_count, 1)
+        fill = [240 - int(140 * color_ratio), 253 - int(80 * color_ratio), 244 - int(150 * color_ratio), 210]
+        new_props = {
+            "PROVINCIA": name,
+            "count": n,
+            "clientes": int(d.loc[d["PROVINCIA"] == name, "clientes"].max()) if name in counts else 0,
+            "unidades": int(d.loc[d["PROVINCIA"] == name, "unidades"].max()) if name in counts else 0,
+            "fill_color": fill,
+        }
+        feat2 = {"type": "Feature", "geometry": feat.get("geometry"), "properties": new_props}
+        features.append(feat2)
+
+        if n > 0:
+            geom = feat.get("geometry", {})
+            coords = geom.get("coordinates", [])
+            points = []
+            if geom.get("type") == "Polygon":
+                points = coords[0] if coords else []
+            elif geom.get("type") == "MultiPolygon" and coords:
+                points = coords[0][0] if coords[0] else []
+            if points:
+                lon = float(np.mean([p[0] for p in points]))
+                lat = float(np.mean([p[1] for p in points]))
+                bubbles.append({
+                    "PROVINCIA": name,
+                    "count": n,
+                    "clientes": new_props["clientes"],
+                    "unidades": new_props["unidades"],
+                    "lon": lon,
+                    "lat": lat,
+                    "radius": 8000 + int((n / max_count) * 24000),
+                    "color": [220, 38, 38, 210] if name == "LIMA" else [0, 168, 133, 160],
+                    "label": "SEDE HQ" if name == "LIMA" else f"{name} ({n})",
+                })
+
+    geo_data = {"type": "FeatureCollection", "features": features}
+    geo_layer = pdk.Layer(
         "GeoJsonLayer",
-        data="https://raw.githubusercontent.com/johan/world.geo.json/master/countries/PER.geo.json",
+        data=geo_data,
+        get_fill_color="properties.fill_color",
+        get_line_color=[200, 200, 200, 100],
+        line_width_min_pixels=0.5,
+        pickable=True,
         stroked=True,
-        filled=False,
-        get_line_color=[15, 23, 42, 220],
-        get_line_width=26000,
-        line_width_min_pixels=1.3,
+        filled=True,
+        auto_highlight=True,
+        update_triggers={"get_fill_color": [max_count]},
+    )
+    bubble_layer = pdk.Layer(
+        "ScatterplotLayer",
+        data=bubbles,
+        get_position="[lon, lat]",
+        get_radius="radius",
+        get_fill_color="color",
+        get_line_color=[255, 255, 255, 220],
+        line_width_min_pixels=1,
+        pickable=True,
+    )
+    text_layer = pdk.Layer(
+        "TextLayer",
+        data=[b for b in bubbles if b["count"] > 40 or b["PROVINCIA"] == "LIMA"],
+        get_position="[lon, lat]",
+        get_text="label",
+        get_color=[15, 23, 42, 230],
+        get_size=12,
+        get_pixel_offset=[0, -15],
         pickable=False,
     )
 
-    heat = pdk.Layer("HeatmapLayer", data=g,
-        get_position=["lon","lat"], get_weight="count",
-        opacity=0.30, threshold=0.04, radius_pixels=65,
-        color_range=[[236,253,245,0],[167,243,208,100],[52,211,153,170],[16,185,129,210],[5,150,105,255]])
-
-    bubbles = pdk.Layer("ScatterplotLayer", data=g,
-        get_position=["lon","lat"], get_radius="radius",
-        get_fill_color="color", get_line_color=[255,255,255,200],
-        line_width_min_pixels=1.5, pickable=True, auto_highlight=True)
-
-    hq = g[g["PROVINCIA"]=="LIMA"].copy()
-    layers = [peru_border, heat, bubbles]
-    if not hq.empty:
-        hq["text"] = "SEDE"
-        layers.append(pdk.Layer("TextLayer", data=hq,
-            get_position=["lon","lat"], get_text="text",
-            get_size=13, get_color=[255,255,255,255],
-            background=True, get_background_color=[220,38,38,230],
-            get_padding=[4,2,4,2], get_pixel_offset=[0,-46], font_weight=700))
-
-    st.pydeck_chart(pdk.Deck(
-        layers=layers,
-        initial_view_state=pdk.ViewState(latitude=-9.5, longitude=-75.0, zoom=4.7, pitch=0),
-        map_style="https://basemaps.cartocdn.com/gl/positron-gl-style/style.json",
-        tooltip={
-            "html":"<b style='color:#0f172a'>{tip}</b>",
-            "style":{"background":"white","border":"1px solid #e2e8f0",
-                     "border-radius":"8px","padding":"8px 12px",
-                     "font-family":"Inter,sans-serif","font-size":"12px",
-                     "color":"#374151","box-shadow":"0 4px 12px rgba(0,0,0,.1)"},
-        },
-    ), use_container_width=True, height=410)
-    st.caption(
-        f"Cobertura georreferenciada: {len(g)}/{total_provincias} provincias activas "
-        f"({cobertura:.1f}%)."
+    st.pydeck_chart(
+        pdk.Deck(
+            layers=[geo_layer, bubble_layer, text_layer],
+            initial_view_state=pdk.ViewState(latitude=-9.19, longitude=-75.0152, zoom=4.5, pitch=0),
+            map_style="https://basemaps.cartocdn.com/gl/positron-gl-style/style.json",
+            tooltip={"html": "<b>{PROVINCIA}</b><br/>Colaboradores: {count}<br/>Clientes: {clientes}<br/>Unidades: {unidades}"},
+        ),
+        use_container_width=True,
+        height=430,
     )
 
 
-# ── Ranking HTML ──────────────────────────────────────────────────────────────
-def render_ranking(df: pd.DataFrame):
-    d = (df.groupby("CLIENTE")["DNI"].nunique()
-         .sort_values(ascending=False).head(10).reset_index())
-    d.columns = ["CLIENTE","N"]
-    mx = d["N"].max()
-    html = '<div class="rank-scroll">'
-    for i, row in d.iterrows():
-        pct = int(row["N"] / max(mx,1) * 100)
-        nc  = "gold" if i < 3 else ""
-        html += (
-            f'<div class="rank-item">'
-            f'<div class="rank-num {nc}">{i+1}</div>'
-            f'<div style="flex:1;min-width:0">'
-            f'<div class="rank-name">{row["CLIENTE"]}</div>'
-            f'</div>'
-            f'<div>'
-            f'<div class="rank-bar-bg"><div class="rank-bar-fill" style="width:{pct}%"></div></div>'
-            f'<div class="rank-val">{int(row["N"]):,}</div>'
-            f'</div>'
-            f'</div>'
-        )
-    html += '</div>'
-    st.markdown(html, unsafe_allow_html=True)
-
-
-# ── Main ──────────────────────────────────────────────────────────────────────
 def main():
     if not DATA_FILE.exists():
-        st.error(f"No se encontró {DATA_FILE}. Colócalo en la misma carpeta que app.py.")
+        st.error("No se encontró datos_git.xlsx")
         st.stop()
 
-    with st.spinner("Cargando datos..."):
-        df = load_data(DATA_FILE)
-    with st.spinner("Cargando coordenadas..."):
-        coords = get_coords(tuple(sorted(df["PROVINCIA"].dropna().unique())))
+    df = load_data(DATA_FILE)
+    geo = load_geojson()
+    filtered = sidebar_filters(df)
 
-    filtered, active = sidebar_filters(df)
-
-    # ── HERO ─────────────────────────────────────────────────────────────────
     st.markdown(
-        f'<div class="hero">'
-        f'<div class="hero-brand">'
-        f'<div class="hero-icon">'
-        f'<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" '
-        f'stroke-width="2" stroke-linecap="round" stroke-linejoin="round">'
-        f'<rect x="2" y="7" width="20" height="14" rx="2"/>'
-        f'<path d="M16 7V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v2"/>'
-        f'</svg></div>'
-        f'<div>'
-        f'<div class="hero-title">Dashboard Ejecutivo &mdash; Gestión de Personal</div>'
-        f'<div class="hero-sub">Cleaned Perfect S.A. &nbsp;·&nbsp; Servicios Generales &amp; Limpieza &nbsp;·&nbsp; Personal activo · Marzo 2026</div>'
-        f'</div></div>'
-        f'<div class="hero-badge">{df["DNI"].dropna().nunique():,} colaboradores activos</div>'
-        f'</div>',
+        f'<div class="hero"><div><div class="hero-title">Dashboard Ejecutivo — Gestión de Personal</div>'
+        f'<div class="hero-sub">Cleaned Perfect S.A. · Servicios Generales y Limpieza · {pd.Timestamp.today().strftime("%d/%m/%Y")}</div></div>'
+        f'<div class="hero-badge">{df["DNI"].dropna().nunique():,} colaboradores activos</div></div>',
         unsafe_allow_html=True,
     )
 
-    # ── FILTER BADGES ────────────────────────────────────────────────────────
-    if active:
-        st.markdown(
-            f'<div style="padding:6px 28px;background:#fff;border-bottom:1px solid #e2e8f0">'
-            + "".join(f'<span class="fbadge">{v}</span>' for v in active)
-            + '</div>',
-            unsafe_allow_html=True,
-        )
-
-    # ── STORY BAR ────────────────────────────────────────────────────────────
-    n_dni  = filtered["DNI"].dropna().nunique()
-    n_prov = filtered["PROVINCIA"][filtered["PROVINCIA"]!="S/I"].nunique()
-    n_cli  = filtered["CLIENTE"].nunique()
-    w_ins = workforce_insights(filtered)
-    top_cli = (
-        filtered.groupby("CLIENTE")["DNI"].nunique().sort_values(ascending=False).head(1)
-    )
-    top_cli_name = top_cli.index[0] if not top_cli.empty else "S/I"
-    top_cli_n = int(top_cli.iloc[0]) if not top_cli.empty else 0
-    st.markdown(
-        f'<div class="story-wrap"><div class="story-bar">'
-        f'Visualizando <strong>{n_dni:,} colaboradores activos</strong> en '
-        f'<strong>{n_prov} provincias</strong> bajo <strong>{n_cli} clientes estratégicos</strong>. '
-        f'La <strong>estabilidad (+6 meses)</strong> es de <strong>{w_ins["estabilidad_6m"]:.1f}%</strong> '
-        f'y la antigüedad mediana alcanza <strong>{w_ins["mediana_meses"]:.1f} meses</strong>. '
-        f'Cliente con mayor dotación: <strong>{top_cli_name}</strong> ({top_cli_n:,} personas).'
-        f'</div></div>',
-        unsafe_allow_html=True,
-    )
-
-    # ── KPI ROW ──────────────────────────────────────────────────────────────
+    st.markdown(f'<div class="story-wrap"><div class="story-bar">{generate_story(filtered, df)}</div></div>', unsafe_allow_html=True)
     st.markdown('<div class="kpi-grid">', unsafe_allow_html=True)
     render_kpis(filtered)
-    st.markdown('</div><div style="height:16px"></div>', unsafe_allow_html=True)
+    st.markdown('</div><div style="height:14px"></div>', unsafe_allow_html=True)
 
-    # ── MAP + RANKING ─────────────────────────────────────────────────────────
-    with st.container():
-        st.markdown('<div style="padding:0 28px">', unsafe_allow_html=True)
-        mc, rc = st.columns([1.7, 1])
-
-        with mc:
-            st.markdown(
-                f'<div class="sec-head">{ICON["globe"]} Distribución geográfica &nbsp;·&nbsp; '
-                f'Perú &nbsp;·&nbsp; <span style="color:#dc2626;font-weight:700">■</span> Sede HQ Lima</div>',
-                unsafe_allow_html=True,
-            )
-            render_map(filtered, coords)
-            st.markdown(
-                '<div style="font-size:.68rem;color:#94a3b8;margin-top:-6px;padding-bottom:2px">'
-                'Burbujas proporcionales al n° de colaboradores · Mapa de calor subyacente · Hover para detalle</div>',
-                unsafe_allow_html=True,
-            )
-
-        with rc:
-            st.markdown(
-                f'<div class="sec-head">{ICON["bar"]} Top clientes &nbsp;·&nbsp; DNIs únicos</div>',
-                unsafe_allow_html=True,
-            )
-            render_ranking(filtered)
-
-        st.markdown('</div>', unsafe_allow_html=True)
-
-    # ── CHARTS ROW ───────────────────────────────────────────────────────────
-    st.markdown('<div style="padding:4px 28px 0">', unsafe_allow_html=True)
-    c1, c2, c3 = st.columns(3)
-
-    with c1:
-        st.markdown(f'<div class="sec-head">{ICON["bar"]} Régimen de planilla</div>',
-                    unsafe_allow_html=True)
-        if "REGIMEN PLANILLA" in filtered.columns:
-            d = (filtered.groupby("REGIMEN PLANILLA")["DNI"].nunique()
-                 .sort_values(ascending=False).reset_index())
-            d.columns = ["REGIMEN","N"]
-            d = d[d["REGIMEN"]!="S/I"]
-            fig = px.pie(d, values="N", names="REGIMEN",
-                         color_discrete_sequence=PALETTE, hole=0.42)
-            fig.update_traces(textinfo="percent", textfont_size=10,
-                hovertemplate="%{label}<br>%{value:,}<br>%{percent}<extra></extra>")
-            fig = chart_base(fig, 255)
-            fig.update_layout(legend=dict(font_size=9, x=1, y=0.5, xanchor="left"))
-            st.plotly_chart(fig, use_container_width=True, config={"displayModeBar":False})
-
-    with c2:
-        st.markdown(f'<div class="sec-head">{ICON["bar"]} Top 6 provincias</div>',
-                    unsafe_allow_html=True)
-        dp = (filtered[filtered["PROVINCIA"]!="S/I"]
-              .groupby("PROVINCIA")["DNI"].nunique()
-              .sort_values(ascending=False).head(6).reset_index())
-        dp.columns = ["PROVINCIA","N"]
-        fig2 = px.bar(dp, x="N", y="PROVINCIA", orientation="h",
-                      color="N", color_continuous_scale=["#bfdbfe","#1e40af"], text="N")
-        fig2 = chart_base(fig2, 255)
-        fig2 = hbar(fig2, dp["N"].max(), left=130, ysize=10)
-        fig2.update_layout(coloraxis_showscale=False)
-        st.plotly_chart(fig2, use_container_width=True, config={"displayModeBar":False})
-
-    with c3:
-        st.markdown(f'<div class="sec-head">{ICON["bar"]} Mix de clientes</div>',
-                    unsafe_allow_html=True)
-        dc = (filtered.groupby("CLIENTE")["DNI"].nunique()
-              .sort_values(ascending=False).head(7).reset_index())
-        dc.columns = ["CLIENTE","N"]
-        fig3 = px.pie(dc, values="N", names="CLIENTE",
-                      color_discrete_sequence=PALETTE, hole=0.42)
-        fig3.update_traces(textinfo="percent", textfont_size=10,
-            hovertemplate="%{label}<br>%{value:,}<br>%{percent}<extra></extra>")
-        fig3 = chart_base(fig3, 255)
-        fig3.update_layout(legend=dict(font_size=9, x=1, y=0.5, xanchor="left"))
-        st.plotly_chart(fig3, use_container_width=True, config={"displayModeBar":False})
-
+    st.markdown('<div style="padding:0 28px">', unsafe_allow_html=True)
+    c_map, c_rank = st.columns([1.7, 1])
+    with c_map:
+        st.markdown(f'<div class="sec-head">{ICON["globe"]} Mapa nacional coroplético</div>', unsafe_allow_html=True)
+        render_map(filtered, geo)
+    with c_rank:
+        st.markdown(f'<div class="sec-head">{ICON["bar"]} Top clientes</div>', unsafe_allow_html=True)
+        rank = filtered.groupby("CLIENTE")["DNI"].nunique().sort_values(ascending=False).head(10).reset_index(name="N")
+        fig_rank = px.bar(rank, x="N", y="CLIENTE", orientation="h", color="N", color_continuous_scale=["#dcfce7", "#166534"], text="N")
+        fig_rank.update_layout(yaxis=dict(autorange="reversed"), coloraxis_showscale=False)
+        st.plotly_chart(chart_base(fig_rank, 430), use_container_width=True, config={"displayModeBar": False})
     st.markdown('</div>', unsafe_allow_html=True)
 
-    # ── TERRITORIAL INTELLIGENCE ────────────────────────────────────────────
     st.markdown('<div style="padding:4px 28px 0">', unsafe_allow_html=True)
-    st.markdown(f'<div class="sec-head">{ICON["heat"]} Cobertura territorial inteligente &nbsp;·&nbsp; Departamento → Provincia → Distrito</div>',
-                unsafe_allow_html=True)
-    if {"DEPARTAMENTO", "PROVINCIA", "DISTRITO"}.issubset(filtered.columns):
-        terr = filtered.copy()
-        terr = terr[(terr["DEPARTAMENTO"] != "S/I") & (terr["PROVINCIA"] != "S/I") & (terr["DISTRITO"] != "S/I")]
-        terr = terr.groupby(["DEPARTAMENTO", "PROVINCIA", "DISTRITO"], as_index=False)["DNI"].nunique()
-        terr.columns = ["DEPARTAMENTO", "PROVINCIA", "DISTRITO", "N"]
-
-        t1, t2 = st.columns([1.3, 1])
-        with t1:
-            fig_terr = px.sunburst(
-                terr,
-                path=["DEPARTAMENTO", "PROVINCIA", "DISTRITO"],
-                values="N",
-                color="N",
-                color_continuous_scale=["#dbeafe", "#1d4ed8"],
-            )
-            fig_terr = chart_base(fig_terr, 320)
-            fig_terr.update_layout(margin=dict(l=8, r=8, t=8, b=8), coloraxis_colorbar=dict(title="DNIs"))
-            st.plotly_chart(fig_terr, use_container_width=True, config={"displayModeBar": False})
-
-        with t2:
-            top_dist = (
-                terr.groupby(["DEPARTAMENTO", "PROVINCIA", "DISTRITO"])["N"]
-                .sum()
-                .sort_values(ascending=False)
-                .head(12)
-                .reset_index()
-            )
-            top_dist["UBICACION"] = top_dist["DISTRITO"] + " · " + top_dist["PROVINCIA"]
-            fig_dist = px.bar(
-                top_dist,
-                x="N",
-                y="UBICACION",
-                orientation="h",
-                color="DEPARTAMENTO",
-                text="N",
-                color_discrete_sequence=PALETTE,
-            )
-            fig_dist = chart_base(fig_dist, 320)
-            fig_dist = hbar(fig_dist, top_dist["N"].max(), left=170, ysize=9)
-            fig_dist.update_layout(legend_title="", legend_font_size=9)
-            st.plotly_chart(fig_dist, use_container_width=True, config={"displayModeBar": False})
+    a, b, c = st.columns(3)
+    with a:
+        st.markdown(f'<div class="sec-head">{ICON["bar"]} Régimen simplificado</div>', unsafe_allow_html=True)
+        reg = filtered.groupby("REGIMEN_SIMPLE")["DNI"].nunique().reset_index(name="N")
+        fig_reg = px.pie(reg, values="N", names="REGIMEN_SIMPLE", color="REGIMEN_SIMPLE", color_discrete_sequence=PALETTE, hole=0.45)
+        st.plotly_chart(chart_base(fig_reg, 260), use_container_width=True, config={"displayModeBar": False})
+    with b:
+        st.markdown(f'<div class="sec-head">{ICON["bar"]} Top 6 provincias</div>', unsafe_allow_html=True)
+        prov = filtered[filtered["PROVINCIA"] != "S/I"].groupby("PROVINCIA")["DNI"].nunique().sort_values(ascending=False).head(6).reset_index(name="N")
+        fig_prov = px.bar(prov, x="N", y="PROVINCIA", orientation="h", text="N", color="N", color_continuous_scale=["#bfdbfe", "#1e40af"])
+        fig_prov.update_layout(yaxis=dict(autorange="reversed"), coloraxis_showscale=False)
+        st.plotly_chart(chart_base(fig_prov, 260), use_container_width=True, config={"displayModeBar": False})
+    with c:
+        st.markdown(f'<div class="sec-head">{ICON["bar"]} Mix clientes</div>', unsafe_allow_html=True)
+        mix = filtered.groupby("CLIENTE")["DNI"].nunique().sort_values(ascending=False).head(7).reset_index(name="N")
+        fig_mix = px.pie(mix, values="N", names="CLIENTE", color_discrete_sequence=PALETTE, hole=0.45)
+        st.plotly_chart(chart_base(fig_mix, 260), use_container_width=True, config={"displayModeBar": False})
     st.markdown('</div>', unsafe_allow_html=True)
 
-    # ── DETAIL TABLE ─────────────────────────────────────────────────────────
     st.markdown('<div style="padding:4px 28px 0">', unsafe_allow_html=True)
-    st.markdown(f'<div class="sec-head">{ICON["list"]} Detalle de colaboradores activos</div>',
-                unsafe_allow_html=True)
-    cols_show = [c for c in ["DNI","APELLIDOS Y NOMBRES","CLIENTE","UNIDAD","CARGO",
-                              "PROVINCIA","DISTRITO","REGIMEN PLANILLA","FECHA DE INGRESO"]
-                 if c in filtered.columns]
-    sc, si = st.columns([2.5, 1])
-    with sc:
-        srch = st.text_input("", placeholder="Buscar por nombre, DNI, cliente o provincia...")
-    with si:
-        st.markdown(
-            f'<div style="padding-top:.45rem;font-size:.78rem;color:#64748b">'
-            f'<strong>{len(filtered):,}</strong> colaboradores activos</div>',
-            unsafe_allow_html=True,
-        )
-    disp = filtered[cols_show].copy().sort_values(["PROVINCIA","CLIENTE"])
+    st.markdown(f'<div class="sec-head">{ICON["heat"]} Heatmap cliente × provincia (top 8 × top 8)</div>', unsafe_allow_html=True)
+    hm = filtered.groupby(["CLIENTE", "PROVINCIA"])["DNI"].nunique().reset_index(name="N")
+    top_cli = hm.groupby("CLIENTE")["N"].sum().sort_values(ascending=False).head(8).index
+    top_prov = hm.groupby("PROVINCIA")["N"].sum().sort_values(ascending=False).head(8).index
+    hm = hm[hm["CLIENTE"].isin(top_cli) & hm["PROVINCIA"].isin(top_prov)]
+    pivot = hm.pivot_table(index="CLIENTE", columns="PROVINCIA", values="N", fill_value=0)
+    fig_hm = px.imshow(pivot, color_continuous_scale=["#f0fdf4", "#166534"], aspect="auto", text_auto=True)
+    st.plotly_chart(chart_base(fig_hm, 360), use_container_width=True, config={"displayModeBar": False})
+    st.markdown('</div>', unsafe_allow_html=True)
+
+    st.markdown('<div style="padding:4px 28px 0">', unsafe_allow_html=True)
+    x1, x2 = st.columns(2)
+    with x1:
+        st.markdown(f'<div class="sec-head">{ICON["bar"]} Top 10 supervisores</div>', unsafe_allow_html=True)
+        sup = filtered.groupby("SUPERVISOR")["DNI"].nunique().sort_values(ascending=False).head(10).reset_index(name="N")
+        fig_sup = px.bar(sup, x="N", y="SUPERVISOR", orientation="h", text="N", color="N", color_continuous_scale=["#dbeafe", "#1d4ed8"])
+        fig_sup.update_layout(yaxis=dict(autorange="reversed"), coloraxis_showscale=False)
+        st.plotly_chart(chart_base(fig_sup, 300), use_container_width=True, config={"displayModeBar": False})
+    with x2:
+        st.markdown(f'<div class="sec-head">{ICON["bar"]} Distribución de antigüedad</div>', unsafe_allow_html=True)
+        buckets = pd.cut(filtered["antiguedad_meses"], bins=[0, 3, 6, 12, 24, 9999], labels=["< 3 meses", "3–6 meses", "6m–1 año", "1–2 años", "> 2 años"])
+        ant = buckets.value_counts().sort_index().reset_index()
+        ant.columns = ["Bucket", "N"]
+        fig_ant = px.bar(ant, x="Bucket", y="N", color="Bucket", color_discrete_sequence=PALETTE, text="N")
+        st.plotly_chart(chart_base(fig_ant, 300), use_container_width=True, config={"displayModeBar": False})
+    st.markdown('</div>', unsafe_allow_html=True)
+
+    st.markdown('<div style="padding:4px 28px 0">', unsafe_allow_html=True)
+    st.markdown(f'<div class="sec-head">{ICON["bar"]} Top 10 distritos de operación</div>', unsafe_allow_html=True)
+    dist = (filtered[filtered["DISTRITO"] != "S/I"].groupby(["DISTRITO", "PROVINCIA"])["DNI"].nunique().sort_values(ascending=False).head(10).reset_index(name="N"))
+    dist["UBI"] = dist["DISTRITO"] + " / " + dist["PROVINCIA"]
+    fig_dist = px.bar(dist, x="N", y="UBI", orientation="h", text="N", color="PROVINCIA", color_discrete_sequence=PALETTE)
+    fig_dist.update_layout(yaxis=dict(autorange="reversed"))
+    st.plotly_chart(chart_base(fig_dist, 330), use_container_width=True, config={"displayModeBar": False})
+    st.markdown('</div>', unsafe_allow_html=True)
+
+    st.markdown('<div style="padding:4px 28px 0">', unsafe_allow_html=True)
+    st.markdown(f'<div class="sec-head">{ICON["list"]} Detalle de colaboradores activos</div>', unsafe_allow_html=True)
+    cols_show = ["DNI", "APELLIDOS Y NOMBRES", "CARGO", "CLIENTE", "UNIDAD", "SUPERVISOR", "PROVINCIA", "DISTRITO", "REGIMEN_SIMPLE", "FECHA DE INGRESO", "ANTIGUEDAD_LABEL"]
+    disp = filtered[cols_show].copy()
+    disp = disp.rename(columns={"APELLIDOS Y NOMBRES": "Nombre", "DISTRITO": "Distrito", "ANTIGUEDAD_LABEL": "Antigüedad", "REGIMEN_SIMPLE": "Régimen"})
+    srch = st.text_input("", placeholder="Buscar por nombre, DNI, cliente o provincia...")
     if srch:
-        blob = (disp[[c for c in ["DNI","APELLIDOS Y NOMBRES","CLIENTE","PROVINCIA"] if c in disp.columns]]
-                .astype(str).agg(" ".join, axis=1).str.upper())
-        disp = disp[blob.str.contains(srch.upper(), na=False, regex=False)]
-    st.dataframe(disp, use_container_width=True, hide_index=True, height=360,
-                 column_config={
-                     "DNI": st.column_config.NumberColumn(format="%d"),
-                     "FECHA DE INGRESO": st.column_config.DateColumn(format="DD/MM/YYYY"),
-                 })
+        blob = disp.astype(str).agg(" ".join, axis=1).str.upper()
+        disp = disp[blob.str.contains(srch.upper(), regex=False, na=False)]
+    st.dataframe(disp, hide_index=True, use_container_width=True, height=360, column_config={"FECHA DE INGRESO": st.column_config.DateColumn(format="DD/MM/YYYY")})
     st.markdown('</div>', unsafe_allow_html=True)
-
-    # ── BOTTOM STORY ─────────────────────────────────────────────────────────
-    n_uni2 = filtered["UNIDAD"].nunique()
-    top_dep = (
-        filtered[filtered["DEPARTAMENTO"] != "S/I"]
-        .groupby("DEPARTAMENTO")["DNI"].nunique()
-        .sort_values(ascending=False)
-        .head(1)
-    )
-    dep_name = top_dep.index[0] if not top_dep.empty else "S/I"
-    st.markdown(
-        f'<div class="bottom-story">'
-        f'<div class="b-stat"><div class="b-val">{w_ins["estabilidad_6m"]:.1f}%</div><div class="b-lbl">Estabilidad +6m</div></div>'
-        f'<div class="b-div"></div>'
-        f'<div class="b-stat"><div class="b-val">{w_ins["mediana_meses"]:.1f}</div><div class="b-lbl">Meses mediana</div></div>'
-        f'<div class="b-div"></div>'
-        f'<div class="b-stat"><div class="b-val">{n_cli}</div><div class="b-lbl">Clientes</div></div>'
-        f'<div class="b-div"></div>'
-        f'<div class="b-stat"><div class="b-val">{n_prov}</div><div class="b-lbl">Provincias</div></div>'
-        f'<div class="b-div"></div>'
-        f'<div class="b-stat"><div class="b-val">{dep_name}</div><div class="b-lbl">Depto líder</div></div>'
-        f'<div class="b-div"></div>'
-        f'<div class="b-text">'
-        f'<strong style="color:#00876a">Resumen ejecutivo:</strong> '
-        f'{n_dni:,} colaboradores activos en {n_prov} provincias bajo {n_cli} clientes. '
-        f'El {w_ins["estabilidad_6m"]:.1f}% del personal tiene al menos 6 meses de antigüedad y '
-        f'{w_ins["recientes_90d"]:,} ingresos ocurrieron en los últimos 90 días. '
-        f'{n_uni2:,} unidades operativas en funcionamiento a nivel nacional.'
-        f'</div></div>',
-        unsafe_allow_html=True,
-    )
-
-    # Footer
-    st.markdown(
-        f'<div style="font-size:.65rem;color:#94a3b8;text-align:right;'
-        f'padding:6px 28px;border-top:1px solid #f1f5f9">'
-        f'Total: <strong>{len(df):,}</strong> &nbsp;·&nbsp; '
-        f'Filtrados: <strong>{len(filtered):,}</strong> &nbsp;·&nbsp; '
-        f'Fuente: datos_git.xlsx → WIDE &nbsp;·&nbsp; Solo personal activo'
-        f'</div>',
-        unsafe_allow_html=True,
-    )
 
 
 if __name__ == "__main__":
